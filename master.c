@@ -6,6 +6,12 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+#include <sys/sem.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+
+#include <unistd.h>
+
 #include "myassert.h"
 
 #include "master_client.h"
@@ -79,11 +85,56 @@ int main(int argc, char * argv[])
     // - création des sémaphores
     // - création des tubes nommés
     // - création du premier worker
+    key_t key = ftok("./master_client.h", 1);
+    myassert(key != -1, "Erreur à la création de la clé");
+
+    int sem_size = 3;
+    int sem = semget(key, sem_size, IPC_CREAT | IPC_EXCL | 0664);
+    myassert(sem != -1, "Erreur à la création des sémaphores");
+
+    unsigned short values[sem_size];
+    values[0] = 1; // sémaphore 0 (SC des clients) à 1
+    values[1] = 0; // sémaphore 1 (attente mutuelle client) à 0
+    values[2] = 0; // sémaphore 2 (attente mutuelle master) à 0
+
+    union semun {
+             int     val;            /* value for SETVAL */
+             struct  semid_ds *buf;  /* buffer for IPC_STAT & IPC_SET */
+             u_short *array;         /* array for GETALL & SETALL */
+    } arg;
+
+    arg.array = values;
+
+    int res = semctl(sem, 0, SETALL, arg);
+    myassert(res != -1, "Erreur à l'initialisation des sémaphores");
+
+    int s = 4;
+    int fifos[s];
+    for (int i=0; i<=s; ++i)
+    {
+        char path[64]; // buffer
+        sprintf(path, "pipeprime_%d", i);
+        int ret = mkfifo(path, 0664);
+        sprintf(path, "Erreur à la création du tube %d", i);
+        myassert(ret == 0, path);
+        fifos[i] = ret;
+    }
 
     // boucle infinie
     loop(/* paramètres */);
 
     // destruction des tubes nommés, des sémaphores, ...
+    res = semctl(sem, -1, IPC_RMID);
+    myassert(sem != -1, "Erreur à la destruction des sémaphores");
+
+    for (int i=0; i<=s; ++i)
+    {
+        char path[64]; // buffer
+        sprintf(path, "pipeprime_%d", i);
+        int ret = unlink(path);
+        sprintf(path, "Erreur à la destruction du tube %d", i);
+        myassert(ret == 0, path);
+    }
 
     return EXIT_SUCCESS;
 }
