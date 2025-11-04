@@ -115,5 +115,37 @@ int main(int argc, char * argv[])
     // N'hésitez pas à faire des fonctions annexes ; si la fonction main
     // ne dépassait pas une trentaine de lignes, ce serait bien.
     
+    if (order = ORDER_COMPUTE_PRIME__LOCAL)
+    {
+    
+    }
+    else 
+    {
+    	int ret;
+    	
+    	key_t cle = ftok("master_client.h", 1);
+	assert(cle != -1);
+    
+    	int semId = semget(cle, 3, 0);
+	assert(semId != -1);
+	
+	
+	struct sembuf entree_attmut_client = {1, -1, 0};
+	
+	struct sembuf entree_attmut_mast = {2, 1, 0};
+	
+	struct sembuf entree_critique_client = {0, -1, 0};
+    	
+    	
+    	ret = semop(semId, entree_critique_client, 1);
+    	assert(ret != -1);
+    	
+    	
+    	ret = semop(semId,entree_attmut_mast , 1);
+        assert(ret != -1);
+	
+	ret = semop(semId,entree_attmut_client , 1);
+        assert(ret != -1);
+	
     return EXIT_SUCCESS;
 }
