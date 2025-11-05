@@ -6,11 +6,15 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+#include <string.h>
+
+#include <fcntl.h>
+#include <unistd.h>
+
+#include <sys/ipc.h>
 #include <sys/sem.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-
-#include <unistd.h>
 
 #include "myassert.h"
 
@@ -23,6 +27,12 @@
 
 // on peut ici définir une structure stockant tout ce dont le master
 // a besoin
+struct master
+{
+    /* data */
+    int how_many_prime;
+    int highest_prime;
+} master;
 
 
 /************************************************************************
@@ -70,6 +80,63 @@ void loop(/* paramètres */)
     //
     // il est important d'ouvrir et fermer les tubes nommés à chaque itération
     // voyez-vous pourquoi ?
+    bool stop = false;
+    do
+    {
+        int fd_client_master = open("fd_client_master", O_RDONLY);
+        myassert(fd_client_master != -1, "erreur : open - fd_client_master");
+        int fd_master_client = open("fd_master_client", O_WRONLY);
+        myassert(fd_master_client != -1, "erreur : open - fd_master_client");
+
+        // TODO: tubes anonymes worker
+
+        int ret;
+
+        int d;
+        ret = read(fd_client_master, &d, sizeof(int));
+        myassert(ret != -1 || ret == sizeof(int) || ret == 0, "erreur : read - fd_client_master");
+
+        printf("ORDER: %d\n", d);
+
+        if (d == ORDER_STOP)
+        {
+            // TODO: communication worker
+
+            const char* msg = "EOC";
+            ret = write(fd_master_client, msg, strlen(msg));
+            myassert(ret != -1 || ret == sizeof(char) || ret == 0, "erreur : write - fd_master_client");
+
+            stop = true;
+        }
+        else if (d == ORDER_COMPUTE_PRIME)
+        {
+            int n;
+            ret = read(fd_client_master, &n, sizeof(int));
+            myassert(ret != -1 || ret == sizeof(int) || ret == 0, "erreur : read - fd_client_master");
+        }
+        else if (d == ORDER_HOW_MANY_PRIME)
+        {
+            int n = master.how_many_prime;
+            ret = write(fd_master_client, &n, sizeof(int));
+            myassert(ret != -1 || ret == sizeof(int) || ret == 0, "erreur : write - fd_master_client");
+        }
+        else if (d == ORDER_HIGHEST_PRIME)
+        {
+            int n = master.highest_prime;
+            ret = write(fd_master_client, &n, sizeof(int));
+            myassert(ret != -1 || ret == sizeof(int) || ret == 0, "erreur : write - fd_master_client");
+        }
+
+        ret = close(fd_client_master);
+        myassert(ret == 0, "erreur : close - fd_client_master");
+        ret = close(fd_master_client);
+        myassert(ret == 0, "erreur : close - fd_master_client");
+
+        stop = true;
+        printf("toto\n"); 
+
+        // TODO: tubes anonymes worker
+    } while (!stop);
 }
 
 
@@ -85,14 +152,17 @@ int main(int argc, char * argv[])
     // - création des sémaphores
     // - création des tubes nommés
     // - création du premier worker
-    key_t key = ftok("./master_client.h", 1);
-    myassert(key != -1, "Erreur à la création de la clé");
+    key_t key;
+    int semId;
+    int ret;
 
-    int sem_size = 3;
-    int sem = semget(key, sem_size, IPC_CREAT | IPC_EXCL | 0664);
-    myassert(sem != -1, "Erreur à la création des sémaphores");
+    key = ftok(IPC_PATH_NAME, IPC_ID);
+    myassert(key != -1, "erreur : ftok - le fichier n'existe pas ou n'est pas accessible");
 
-    unsigned short values[sem_size];
+    semId = semget(key, IPC_SIZE, IPC_CREAT | IPC_EXCL | 0641);
+    myassert(semId != -1, "erreur : semget");
+
+    unsigned short values[IPC_SIZE];
     values[0] = 1; // sémaphore 0 (SC des clients) à 1
     values[1] = 0; // sémaphore 1 (attente mutuelle client) à 0
     values[2] = 0; // sémaphore 2 (attente mutuelle master) à 0
@@ -105,36 +175,25 @@ int main(int argc, char * argv[])
 
     arg.array = values;
 
-    int res = semctl(sem, 0, SETALL, arg);
-    myassert(res != -1, "Erreur à l'initialisation des sémaphores");
+    ret = semctl(semId, 0, SETALL, arg);
+    myassert(ret != -1, "erreur : semctl");
 
-    int s = 4;
-    int fifos[s];
-    for (int i=0; i<=s; ++i)
-    {
-        char path[64]; // buffer
-        sprintf(path, "pipeprime_%d", i);
-        int ret = mkfifo(path, 0664);
-        sprintf(path, "Erreur à la création du tube %d", i);
-        myassert(ret == 0, path);
-        fifos[i] = ret;
-    }
+    ret = mkfifo("fd_client_master", 0644); // tube 0 (client -> master)
+    myassert(ret == 0, "erreur : mkfifo - fd_client_master");
+    ret = mkfifo("fd_master_client", 0644); // tube 1 (master -> client)
+    myassert(ret == 0, "erreur : mkfifo - fd_master_client");
 
     // boucle infinie
-    loop(/* paramètres */);
+    //loop(/* paramètres */);
 
     // destruction des tubes nommés, des sémaphores, ...
-    res = semctl(sem, -1, IPC_RMID);
-    myassert(sem != -1, "Erreur à la destruction des sémaphores");
+    ret = unlink("fd_client_master");
+    myassert(ret == 0, "erreur : unlink - fd_client_master");
+    ret = unlink("fd_master_client");
+    myassert(ret == 0, "erreur : unlink - fd_master_client");
 
-    for (int i=0; i<=s; ++i)
-    {
-        char path[64]; // buffer
-        sprintf(path, "pipeprime_%d", i);
-        int ret = unlink(path);
-        sprintf(path, "Erreur à la destruction du tube %d", i);
-        myassert(ret == 0, path);
-    }
+    ret = semctl(semId, -1, IPC_RMID);
+    myassert(semId != -1, "erreur : semctl");
 
     return EXIT_SUCCESS;
 }

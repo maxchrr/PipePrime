@@ -17,5 +17,8 @@
 // bref n'hésitez à mettre nombre de fonctions avec des noms explicites
 // pour masquer l'implémentation
 
+#define IPC_PATH_NAME "master_client.h"
+#define IPC_ID 5
+#define IPC_SIZE 3
 
 #endif
