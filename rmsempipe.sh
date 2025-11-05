@@ -24,8 +24,8 @@ else
 fi
 
 
-c2m="nom_du_tube_client_vers_master"
-m2c="nom_du_tube_master_vers_client"
+c2m="fd_client_master"
+m2c="fd_master_client"
 
 if [ ! -p $c2m ]
 then
