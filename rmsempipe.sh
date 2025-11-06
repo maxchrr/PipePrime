@@ -1,7 +1,8 @@
 #!/bin/bash
 
 DROITS=641
-nb=`ipcs -s | grep $USER | grep $DROITS | wc -l`
+#nb=`ipcs -s | grep $USER | grep $DROITS | wc -l`
+nb=`ipcs -s | grep $USER | wc -l`
 
 if [ $nb -eq 0 ]
 then

@@ -7,6 +7,12 @@
 #include <stdbool.h>
 #include <string.h>
 
+#include <fcntl.h>
+#include <unistd.h>
+
+#include <sys/ipc.h>
+#include <sys/sem.h>
+
 #include "myassert.h"
 
 #include "master_client.h"
@@ -115,37 +121,82 @@ int main(int argc, char * argv[])
     // N'hésitez pas à faire des fonctions annexes ; si la fonction main
     // ne dépassait pas une trentaine de lignes, ce serait bien.
     
-    if (order = ORDER_COMPUTE_PRIME__LOCAL)
+    if (order == ORDER_COMPUTE_PRIME_LOCAL)
     {
-    
+
     }
     else 
     {
+        key_t key;
+        int semId;
     	int ret;
     	
-    	key_t cle = ftok("master_client.h", 1);
-	assert(cle != -1);
+    	key = ftok(IPC_PATH_NAME, IPC_ID);
+        myassert(key != -1, "erreur : ftok - le fichier n'existe pas ou n'est pas accessible");
     
-    	int semId = semget(cle, 3, 0);
-	assert(semId != -1);
+    	semId = semget(key, IPC_SIZE, 0);
+	    myassert(semId != -1, "erreur : semget");
 	
-	
-	struct sembuf entree_attmut_client = {1, -1, 0};
-	
-	struct sembuf entree_attmut_mast = {2, 1, 0};
-	
-	struct sembuf entree_critique_client = {0, -1, 0};
+        // entrée SC
+        struct sembuf entree_critique_client =  {0, -1, 0};
+        struct sembuf entree_attmut_client =    {1, -1, 0};
+	    struct sembuf entree_attmut_master =    {2, -1, 0};
     	
+    	ret = semop(semId, &entree_critique_client, IPC_SIZE);
+    	myassert(ret != -1, "erreur : semop : entree_critique_client");
     	
-    	ret = semop(semId, entree_critique_client, 1);
-    	assert(ret != -1);
-    	
-    	
-    	ret = semop(semId,entree_attmut_mast , 1);
-        assert(ret != -1);
+    	ret = semop(semId, &entree_attmut_master, IPC_SIZE);
+        myassert(ret != -1, "erreur : semop : entree_attmut_client");
 	
-	ret = semop(semId,entree_attmut_client , 1);
-        assert(ret != -1);
+	    ret = semop(semId, &entree_attmut_client, IPC_SIZE);
+        myassert(ret != -1, "erreur : semop : entree_attmut_client");
+
+        // ouverture tubes
+        int fd_client_master = open("fd_client_master", O_RDONLY);
+        myassert(fd_client_master != -1, "erreur : open - fd_client_master");
+        int fd_master_client = open("fd_master_client", O_WRONLY);
+        myassert(fd_master_client != -1, "erreur : open - fd_master_client");
+
+        if (order == ORDER_STOP)
+        {  
+            char c;
+            ret = read(fd_client_master, &c, sizeof(char));
+            myassert(ret != -1 || ret == sizeof(char) || ret == 0, "erreur : read - fd_client_master");
+
+            printf("echo\n");
+
+            putchar(c);
+        }
+        else if (order == ORDER_COMPUTE_PRIME)
+        {
+        }
+        else if (order == ORDER_HOW_MANY_PRIME)
+        {
+        }
+        else if (order == ORDER_HIGHEST_PRIME)
+        {
+        }
+
+        // sortie SC
+        struct sembuf sortie_critique_client =  {0, 1, 0};
+        struct sembuf sortie_attmut_client =    {1, 1, 0};
+	    struct sembuf sortie_attmut_master =    {2, 1, 0};
+    	
+    	ret = semop(semId, &sortie_critique_client, 1);
+    	myassert(ret != -1, "erreur : semop : sortie_critique_client");
+    	
+    	ret = semop(semId, &sortie_attmut_master, 1);
+        myassert(ret != -1, "erreur : semop : sortie_attmut_client");
+	
+	    ret = semop(semId, &sortie_attmut_client, 1);
+        myassert(ret != -1, "erreur : semop : sortie_attmut_client");
+
+        // libération des ressources
+        ret = close(fd_client_master);
+        myassert(ret == 0, "erreur : close - fd_client_master");
+        ret = close(fd_master_client);
+        myassert(ret == 0, "erreur : close - fd_master_client");
+    }
 	
     return EXIT_SUCCESS;
 }

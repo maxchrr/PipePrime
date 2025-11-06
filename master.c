@@ -5,7 +5,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
-
 #include <string.h>
 
 #include <fcntl.h>
@@ -163,7 +162,7 @@ int main(int argc, char * argv[])
     myassert(semId != -1, "erreur : semget");
 
     unsigned short values[IPC_SIZE];
-    values[0] = 1; // sémaphore 0 (SC des clients) à 1
+    values[0] = 1 ; // sémaphore 0 (SC des clients) à 1
     values[1] = 0; // sémaphore 1 (attente mutuelle client) à 0
     values[2] = 0; // sémaphore 2 (attente mutuelle master) à 0
 
@@ -184,7 +183,7 @@ int main(int argc, char * argv[])
     myassert(ret == 0, "erreur : mkfifo - fd_master_client");
 
     // boucle infinie
-    //loop(/* paramètres */);
+    loop(/* paramètres */);
 
     // destruction des tubes nommés, des sémaphores, ...
     ret = unlink("fd_client_master");
