@@ -21,4 +21,7 @@
 #define IPC_ID 5
 #define IPC_SIZE 3
 
+int open_fifo(const char* name, int mode);
+void close_fifo(int fifo, const char* name);
+
 #endif

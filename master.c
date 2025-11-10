@@ -50,7 +50,7 @@ static void usage(const char *exeName, const char *message)
 /************************************************************************
  * boucle principale de communication avec le client
  ************************************************************************/
-void loop(/* paramètres */)
+void loop(/* paramètres */int semId)
 {
     // boucle infinie :
     // - ouverture des tubes (cf. rq client.c)
@@ -82,14 +82,21 @@ void loop(/* paramètres */)
     bool stop = false;
     do
     {
-        int fd_client_master = open("fd_client_master", O_RDONLY);
-        myassert(fd_client_master != -1, "erreur : open - fd_client_master");
-        int fd_master_client = open("fd_master_client", O_WRONLY);
-        myassert(fd_master_client != -1, "erreur : open - fd_master_client");
+        int ret;
+
+        struct sembuf entree_attmut_client =    {1, 1, 0};
+	    struct sembuf entree_attmut_master =    {2, -1, 0};
+
+        ret = semop(semId, &entree_attmut_client, 1);
+        myassert(ret != -1, "erreur : semop : entree_attmut_client");
+
+        ret = semop(semId, &entree_attmut_master, 1);
+        myassert(ret != -1, "erreur : semop : entree_attmut_master");
+
+        int fd_client_master = open_fifo("fd_client_master", O_RDONLY);
+        int fd_master_client = open_fifo("fd_master_client", O_WRONLY);
 
         // TODO: tubes anonymes worker
-
-        int ret;
 
         int d;
         ret = read(fd_client_master, &d, sizeof(int));
@@ -101,7 +108,7 @@ void loop(/* paramètres */)
         {
             // TODO: communication worker
 
-            const char* msg = "EOC";
+            const char* msg = "EOC\n";
             ret = write(fd_master_client, msg, strlen(msg));
             myassert(ret != -1 || ret == sizeof(char) || ret == 0, "erreur : write - fd_master_client");
 
@@ -126,13 +133,8 @@ void loop(/* paramètres */)
             myassert(ret != -1 || ret == sizeof(int) || ret == 0, "erreur : write - fd_master_client");
         }
 
-        ret = close(fd_client_master);
-        myassert(ret == 0, "erreur : close - fd_client_master");
-        ret = close(fd_master_client);
-        myassert(ret == 0, "erreur : close - fd_master_client");
-
-        stop = true;
-        printf("toto\n"); 
+        close_fifo(fd_client_master, "fd_client_master");
+        close_fifo(fd_master_client, "fd_master_client");
 
         // TODO: tubes anonymes worker
     } while (!stop);
@@ -142,6 +144,20 @@ void loop(/* paramètres */)
 /************************************************************************
  * Fonction principale
  ************************************************************************/
+
+void create_fifo(const char* name)
+{
+    int ret = mkfifo(name, 0644);
+    myassert(ret == 0, "erreur : mkfifo - cannot create the fifo");
+    printf("[MASTER] Created fifo %s\n", name);
+}
+
+void dispose_fifo(const char* name) 
+{
+    int ret = unlink(name);
+    myassert(ret == 0, "erreur : unlink - cannot remove fifo");
+    printf("[MASTER] Dispose fifo %s\n", name);
+}
 
 int main(int argc, char * argv[])
 {
@@ -156,10 +172,10 @@ int main(int argc, char * argv[])
     int ret;
 
     key = ftok(IPC_PATH_NAME, IPC_ID);
-    myassert(key != -1, "erreur : ftok - le fichier n'existe pas ou n'est pas accessible");
+    myassert(key != -1, "erreur : ftok - file doesn't exist");
 
     semId = semget(key, IPC_SIZE, IPC_CREAT | IPC_EXCL | 0641);
-    myassert(semId != -1, "erreur : semget");
+    myassert(semId != -1, "erreur : semget - unable to create the semaphore");
 
     unsigned short values[IPC_SIZE];
     values[0] = 1 ; // sémaphore 0 (SC des clients) à 1
@@ -167,32 +183,29 @@ int main(int argc, char * argv[])
     values[2] = 0; // sémaphore 2 (attente mutuelle master) à 0
 
     union semun {
-             int     val;            /* value for SETVAL */
-             struct  semid_ds *buf;  /* buffer for IPC_STAT & IPC_SET */
-             u_short *array;         /* array for GETALL & SETALL */
+            int                 val;    /* value for SETVAL */
+            struct semid_ds     *buf;   /* buffer for IPC_STAT & IPC_SET */
+            unsigned short      *array; /* array for GETALL & SETALL */
+            struct seminfo      *__buf; /* buffer for IPC_INFO (Linux-specific */
     } arg;
 
     arg.array = values;
 
     ret = semctl(semId, 0, SETALL, arg);
-    myassert(ret != -1, "erreur : semctl");
+    myassert(ret != -1, "erreur : semctl - unable to initialize the semaphore");
 
-    ret = mkfifo("fd_client_master", 0644); // tube 0 (client -> master)
-    myassert(ret == 0, "erreur : mkfifo - fd_client_master");
-    ret = mkfifo("fd_master_client", 0644); // tube 1 (master -> client)
-    myassert(ret == 0, "erreur : mkfifo - fd_master_client");
+    create_fifo("fd_client_master"); // tube 0 (client -> master)
+    create_fifo("fd_master_client"); // tube 1 (master -> client)
 
     // boucle infinie
-    loop(/* paramètres */);
+    loop(/* paramètres */semId);
 
     // destruction des tubes nommés, des sémaphores, ...
-    ret = unlink("fd_client_master");
-    myassert(ret == 0, "erreur : unlink - fd_client_master");
-    ret = unlink("fd_master_client");
-    myassert(ret == 0, "erreur : unlink - fd_master_client");
+    dispose_fifo("fd_client_master");
+    dispose_fifo("fd_master_client");
 
     ret = semctl(semId, -1, IPC_RMID);
-    myassert(semId != -1, "erreur : semctl");
+    myassert(semId != -1, "erreur : semctl - unable to destroy the semaphore");
 
     return EXIT_SUCCESS;
 }

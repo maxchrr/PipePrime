@@ -12,7 +12,8 @@ else
     if [ $nb -gt 1 ]; then pluriel="s"; fi
     echo "vous avez $nb sémaphore$pluriel non détruit$pluriel";
 
-    for id in `ipcs -s | grep $USER | grep $DROITS | awk '{print $2;}'`
+    #for id in `ipcs -s | grep $USER | grep $DROITS | awk '{print $2;}'`
+    for id in `ipcs -s | grep $USER | awk '{print $2;}'`
     do
         echo "  destruction sémaphore " $id
         ipcrm -s $id
