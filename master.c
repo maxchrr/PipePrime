@@ -85,7 +85,7 @@ void loop(/* paramètres */int semId)
         int ret;
 
         struct sembuf entree_attmut_client =    {1, 1, 0};
-	    struct sembuf entree_attmut_master =    {2, -1, 0};
+	struct sembuf entree_attmut_master =    {2, -1, 0};
 
         ret = semop(semId, &entree_attmut_client, 1);
         myassert(ret != -1, "erreur : semop : entree_attmut_client");
