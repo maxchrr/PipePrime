@@ -6,8 +6,11 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#include "myassert.h"
+#include <unistd.h>
+
 #include <sys/wait.h>
+
+#include "myassert.h"
 
 #include "master_worker.h"
 
@@ -17,14 +20,13 @@
 
 // on peut ici définir une structure stockant tout ce dont le worker
 // a besoin : le nombre premier dont il a la charge, ...
-
 struct worker
 {
     /* data */
     int number;
-    int canalIn;
-    int canalMaster;
-    int canalNextWorker;
+    int input_channel;
+    int master_channel;
+    int next_worker_channel;
 } worker;
 
 
@@ -43,20 +45,23 @@ static void usage(const char *exeName, const char *message)
     exit(EXIT_FAILURE);
 }
 
-static void parseArgs(int argc, char * argv[] , worker * work/*, structure à remplir*/)
+static void parseArgs(int argc, char * argv[], struct worker* current_worker)
 {
     if (argc != 4)
         usage(argv[0], "Nombre d'arguments incorrect");
 
     // remplir la structure
-    *work = {number= argv[1]; canalIn = argv[2] ; canalMaster = argv[3]; canalNextWorker = Null };
+    (*current_worker).number = atoi(argv[1]);
+    (*current_worker).input_channel = atoi(argv[2]);
+    (*current_worker).master_channel = atoi(argv[3]);
+    (*current_worker).next_worker_channel = NULL;
 }
 
 /************************************************************************
  * Boucle principale de traitement
  ************************************************************************/
 
-void loop(worker * work /* paramètres */)
+void loop(struct worker* current_worker)
 {
     // boucle infinie :
     //    attendre l'arrivée d'un nombre à tester
@@ -73,31 +78,35 @@ void loop(worker * work /* paramètres */)
     do {
     	int c;
     	int ret;
-    	ret = read((*work).canalIn, &c, sizeof(int));
-    	myassert(ret != -1 || ret == sizeof(char) || ret == 0, "erreur : read - canalIn");
+
+    	ret = reader((*current_worker).input_channel, &c, sizeof(int));
     
-    	if (c==-1){
-    		if (work.canalNextWorker != Null){ 
-    			ret = write((*work).canalNextWorker, &c, sizeof(int));
-    			myassert(ret != -1 || ret == sizeof(char) || ret == 0, "erreur : write - canalNextWorker");
+    	if (c == -1)
+        {
+    		if (current_worker->next_worker_channel != NULL)
+            { 
+    			ret = writer((*current_worker).next_worker_channel, &c, sizeof(int));
     			
     			ret = wait(NULL);
-        		assert(ret != -1);
+        		myassert(ret != -1, "erreur : wait");
     		}
     		stop = true;
-    	} else {
+    	}
+        else
+        {
     		bool res = false;
-    		if (c == work.number){
+    		if (c == current_worker->number)
+            {
     			res = true;
-    			ret = write((*work).canalMaster, &res, sizeof(bool));
-    			myassert(ret != -1 || ret == sizeof(bool) || ret == 0, "erreur : write - canalMaster");
-    		} else if ( c mod work.number == 0) {
-    			ret = write((*work).canalMaster, &res, sizeof(bool));
-    			myassert(ret != -1 || ret == sizeof(bool) || ret == 0, "erreur : write - canalMaster");
-    		} else {
-    			}
-    			
-    			
+    			ret = writer((*current_worker).master_channel, &res, sizeof(bool));
+    		}
+            else if (c % current_worker->number == 0)
+            {
+    			ret = writer((*current_worker).master_channel, &res, sizeof(bool));
+    		}
+            else {
+    		}		
+        }
     } while (!stop);
     
 }
@@ -108,14 +117,14 @@ void loop(worker * work /* paramètres */)
 
 int main(int argc, char * argv[])
 {
-    worker work ;
-    parseArgs(argc, argv , &work /*, structure à remplir*/);
+    struct worker current_worker;
+    parseArgs(argc, argv , &current_worker);
     
     // Si on est créé c'est qu'on est un nombre premier
     // Envoyer au master un message positif pour dire
     // que le nombre testé est bien premier
 
-    loop(&work/* paramètres */);
+    loop(&current_worker);
 
     // libérer les ressources : fermeture des files descriptors par exemple
 

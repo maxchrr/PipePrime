@@ -10,25 +10,69 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include <sys/types.h>
+#include <sys/stat.h>
+
 #include "myassert.h"
 
 #include "master_client.h"
 
 // fonctions éventuelles internes au fichier
-int open_fifo(const char* name, int mode)
+void create_fifo(const char* name)
 {
-        int fifo = open(name, mode);
-        myassert(fifo != -1, "erreur : open - cannot open the fifo");
-        printf("[MASTER-CLIENT] The fifo %s is open\n", name);
-        return fifo;
+    ssize_t ret = mkfifo(name, 0644);
+    myassert(ret == 0, "erreur : mkfifo - cannot create the fifo");
+    printf("[MASTER] Created fifo %s\n", name);
 }
 
-void close_fifo(int fifo, const char* name)
+void dispose_fifo(const char* name) 
 {
-        int ret = close(fifo);
+    ssize_t ret = unlink(name);
+    myassert(ret == 0, "erreur : unlink - cannot remove fifo");
+    printf("[MASTER] Dispose fifo %s\n", name);
+}
+
+int open_fifo(const char* name, int mode)
+{
+        int fd = open(name, mode);
+        myassert(fd != -1, "erreur : open - cannot open the fifo");
+        printf("[MASTER-CLIENT] The fifo %s is open\n", name);
+        return fd;
+}
+
+void close_fifo(int fd, const char* name)
+{
+        int ret = close(fd);
         myassert(ret == 0, "erreur : close - cannot close fifo");
         printf("[MASTER-CLIENT] The fifo %s is close\n", name);
 }
+
+ssize_t reader(int fd, void* buf, size_t size) {
+        size_t total = 0;
+        char* ptr = buf;
+        ssize_t ret = -1;
+        while (ret != 0)
+        {
+                ret = read(fd, ptr+total, size-total);
+                myassert(ret != -1, "Erreur : reading on fifo failed");
+                total += ret;
+        }
+        return total;
+}
+
+ssize_t writer(int fd, const void* buf, size_t size) {
+        size_t total = 0;
+        const char* ptr = buf;
+        ssize_t ret = -1;
+        while (ret != 0)
+        {
+                ret = write(fd, ptr+total, size-total);
+                myassert(ret != -1, "Erreur : writing on fifo failed");
+                total += ret;
+        }
+        return total;
+}
+
 
 // fonctions éventuelles proposées dans le .h
 

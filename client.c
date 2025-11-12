@@ -140,7 +140,7 @@ int main(int argc, char * argv[])
         // entrée SC
         struct sembuf entree_critique_client =  {0, -1, 0};
         struct sembuf entree_attmut_client =    {1, -1, 0};
-	struct sembuf entree_attmut_master =    {2, 1, 0};
+	    struct sembuf entree_attmut_master =    {2, 1, 0};
     	
     	ret = semop(semId, &entree_critique_client, 1);
     	myassert(ret != -1, "erreur : semop : entree_critique_client");
@@ -148,7 +148,7 @@ int main(int argc, char * argv[])
     	ret = semop(semId, &entree_attmut_master, 1);
         myassert(ret != -1, "erreur : semop : entree_attmut_master");
 	
-	ret = semop(semId, &entree_attmut_client, 1);
+	    ret = semop(semId, &entree_attmut_client, 1);
         myassert(ret != -1, "erreur : semop : entree_attmut_client");
 
         // ouverture tubes
@@ -157,43 +157,35 @@ int main(int argc, char * argv[])
         
         if (order == ORDER_STOP)
         {  
-            ret = write(fd_client_master, &order, sizeof(int));
-            myassert(ret != -1 || ret == sizeof(int) || ret == 0, "erreur : write - fd_client_master");
+            ret = writer(fd_client_master, &order, sizeof(int));
 
             do
             {
                 char c;
-                ret = read(fd_master_client, &c, sizeof(char));
-                myassert(ret != -1 || ret == sizeof(char) || ret == 0, "erreur : read - fd_master_client");
+                ret = reader(fd_master_client, &c, sizeof(char));
                 putchar(c);
             } while (ret != 0);
         }
         else if (order == ORDER_COMPUTE_PRIME)
         {
-            ret = write(fd_client_master, &order, sizeof(int));
-            myassert(ret != -1 || ret == sizeof(int) || ret == 0, "erreur : write - fd_client_master");
+            ret = writer(fd_client_master, &order, sizeof(int));
             
             char c;
-            ret = read(fd_master_client, &c, sizeof(char));
-            myassert(ret != -1 || ret == sizeof(char) || ret == 0, "erreur : read - fd_master_client");
+            ret = reader(fd_master_client, &c, sizeof(char));
         }
         else if (order == ORDER_HOW_MANY_PRIME)
         {
-            ret = write(fd_client_master, &order, sizeof(int));
-            myassert(ret != -1 || ret == sizeof(int) || ret == 0, "erreur : write - fd_client_master");
+            ret = writer(fd_client_master, &order, sizeof(int));
             
             char c;
-            ret = read(fd_master_client, &c, sizeof(char));
-            myassert(ret != -1 || ret == sizeof(char) || ret == 0, "erreur : read - fd_master_client");
+            ret = reader(fd_master_client, &c, sizeof(char));
         }
         else if (order == ORDER_HIGHEST_PRIME)
         {
-            ret = write(fd_client_master, &order, sizeof(int));
-            myassert(ret != -1 || ret == sizeof(int) || ret == 0, "erreur : write - fd_client_master");
+            ret = writer(fd_client_master, &order, sizeof(int));
             
             char c;
-            ret = read(fd_master_client, &c, sizeof(char));
-            myassert(ret != -1 || ret == sizeof(char) || ret == 0, "erreur : read - fd_master_client");
+            ret = reader(fd_master_client, &c, sizeof(char));
         }
 
         // sortie SC

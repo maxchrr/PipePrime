@@ -12,8 +12,6 @@
 
 #include <sys/ipc.h>
 #include <sys/sem.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 
 #include "myassert.h"
 
@@ -50,7 +48,7 @@ static void usage(const char *exeName, const char *message)
 /************************************************************************
  * boucle principale de communication avec le client
  ************************************************************************/
-void loop(/* paramètres */int semId)
+void loop(int semId)
 {
     // boucle infinie :
     // - ouverture des tubes (cf. rq client.c)
@@ -82,10 +80,10 @@ void loop(/* paramètres */int semId)
     bool stop = false;
     do
     {
-        int ret;
+        ssize_t ret;
 
         struct sembuf entree_attmut_client =    {1, 1, 0};
-	struct sembuf entree_attmut_master =    {2, -1, 0};
+	    struct sembuf entree_attmut_master =    {2, -1, 0};
 
         ret = semop(semId, &entree_attmut_client, 1);
         myassert(ret != -1, "erreur : semop : entree_attmut_client");
@@ -99,8 +97,7 @@ void loop(/* paramètres */int semId)
         // TODO: tubes anonymes worker
 
         int d;
-        ret = read(fd_client_master, &d, sizeof(int));
-        myassert(ret != -1 || ret == sizeof(int) || ret == 0, "erreur : read - fd_client_master");
+        ret = reader(fd_client_master, &d, sizeof(int));
 
         printf("ORDER: %d\n", d);
 
@@ -109,28 +106,24 @@ void loop(/* paramètres */int semId)
             // TODO: communication worker
 
             const char* msg = "EOC\n";
-            ret = write(fd_master_client, msg, strlen(msg));
-            myassert(ret != -1 || ret == sizeof(char) || ret == 0, "erreur : write - fd_master_client");
+            ret = writer(fd_master_client, msg, strlen(msg));
 
             stop = true;
         }
         else if (d == ORDER_COMPUTE_PRIME)
         {
             int n;
-            ret = read(fd_client_master, &n, sizeof(int));
-            myassert(ret != -1 || ret == sizeof(int) || ret == 0, "erreur : read - fd_client_master");
+            ret = reader(fd_client_master, &n, sizeof(int));
         }
         else if (d == ORDER_HOW_MANY_PRIME)
         {
             int n = master.how_many_prime;
-            ret = write(fd_master_client, &n, sizeof(int));
-            myassert(ret != -1 || ret == sizeof(int) || ret == 0, "erreur : write - fd_master_client");
+            ret = reader(fd_client_master, &n, sizeof(int));
         }
         else if (d == ORDER_HIGHEST_PRIME)
         {
             int n = master.highest_prime;
-            ret = write(fd_master_client, &n, sizeof(int));
-            myassert(ret != -1 || ret == sizeof(int) || ret == 0, "erreur : write - fd_master_client");
+            ret = reader(fd_client_master, &n, sizeof(int));
         }
 
         close_fifo(fd_client_master, "fd_client_master");
@@ -145,20 +138,6 @@ void loop(/* paramètres */int semId)
  * Fonction principale
  ************************************************************************/
 
-void create_fifo(const char* name)
-{
-    int ret = mkfifo(name, 0644);
-    myassert(ret == 0, "erreur : mkfifo - cannot create the fifo");
-    printf("[MASTER] Created fifo %s\n", name);
-}
-
-void dispose_fifo(const char* name) 
-{
-    int ret = unlink(name);
-    myassert(ret == 0, "erreur : unlink - cannot remove fifo");
-    printf("[MASTER] Dispose fifo %s\n", name);
-}
-
 int main(int argc, char * argv[])
 {
     if (argc != 1)
@@ -169,7 +148,7 @@ int main(int argc, char * argv[])
     // - création du premier worker
     key_t key;
     int semId;
-    int ret;
+    ssize_t ret;
 
     key = ftok(IPC_PATH_NAME, IPC_ID);
     myassert(key != -1, "erreur : ftok - file doesn't exist");
@@ -198,7 +177,7 @@ int main(int argc, char * argv[])
     create_fifo("fd_master_client"); // tube 1 (master -> client)
 
     // boucle infinie
-    loop(/* paramètres */semId);
+    loop(semId);
 
     // destruction des tubes nommés, des sémaphores, ...
     dispose_fifo("fd_client_master");
