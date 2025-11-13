@@ -114,7 +114,7 @@ void loop(struct worker* current_worker)
             	{ 
     			ret = writer(*(current_worker->next_worker_channel), &c, sizeof(int));
     		}
-		else //il n'en existe pas 
+		else // il n'en existe pas 
 		{
 			int retf = fork();
 			myassert(ret != 0,"error worker: fork");
