@@ -180,6 +180,47 @@ int main(int argc, char * argv[])
     create_fifo("fd_client_master"); // tube 0 (client -> master)
     create_fifo("fd_master_client"); // tube 1 (master -> client)
 
+    // déclaration du tube
+    // il y aura un file descriptor par extrémité du tube :
+    //    0 : extrémité en lecture   (0 comme stdin)
+    //    1 : extrémité en écriture  (1 comme stdout)
+    int fds_master_worker[2];
+    int fds_worker_master[2];
+
+    ret = pipe(fds_master_worker);
+    myassert(ret != -1, "erreur : pipe - cannot create the pipe");
+    ret = pipe(fds_worker_master);
+    myassert(ret != -1, "erreur : pipe - cannot create the pipe");
+
+    ret = fork();
+    myassert(ret != -1, "erreur : fork");
+
+    // fils
+    if (ret == 0)
+    {
+        ret = close(fds_master_worker[1]);
+        myassert(ret == 0, "erreur : close - cannot close the pipe");
+        ret = close(fds_worker_master[0]);
+        myassert(ret == 0, "erreur : close - cannot close the pipe");
+
+        char buffer[1000];
+
+        char* args[3];
+        args[0] = "-1";
+        sprintf(buffer, "%d", fds_master_worker[0]);
+        args[1] = buffer;
+        sprintf(buffer, "%d", fds_worker_master[1]);
+        args[2] = buffer;
+
+        ret = execv("./worker", args);
+        myassert(ret != -1, "erreur : execv - unable to start process");
+    }
+
+    ret = close(fds_master_worker[0]);
+    myassert(ret == 0, "erreur : close - cannot close the pipe");
+    ret = close(fds_worker_master[1]);
+    myassert(ret == 0, "erreur : close - cannot close the pipe");
+
     // boucle infinie
     loop(data, semId);
 
