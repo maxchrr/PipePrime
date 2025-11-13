@@ -135,7 +135,7 @@ void loop(struct worker* current_worker)
     				argv[1] = s;
     				sprintf(s, "%d", current_worker->fdToMaster);
     				argv[2] = s;
-                    argv[4] = NULL;
+                    argv[3] = NULL;
     				
 				ret = execv("./worker",argv);
 			}
