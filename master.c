@@ -29,6 +29,7 @@
 struct master
 {
     /* data */
+    int semId;
     int highest_prime;
     int how_many_prime;
 };
@@ -50,7 +51,7 @@ static void usage(const char *exeName, const char *message)
 /************************************************************************
  * boucle principale de communication avec le client
  ************************************************************************/
-void loop(struct master data, int semId)
+void loop(struct master data)
 {
     // boucle infinie :
     // - ouverture des tubes (cf. rq client.c)
@@ -87,10 +88,10 @@ void loop(struct master data, int semId)
         struct sembuf entree_attmut_client =    {1, 1, 0};
 	    struct sembuf entree_attmut_master =    {2, -1, 0};
 
-        ret = semop(semId, &entree_attmut_client, 1);
+        ret = semop(data.semId, &entree_attmut_client, 1);
         myassert(ret != -1, "erreur : semop : entree_attmut_client");
 
-        ret = semop(semId, &entree_attmut_master, 1);
+        ret = semop(data.semId, &entree_attmut_master, 1);
         myassert(ret != -1, "erreur : semop : entree_attmut_master");
 
         int fd_client_master = open_fifo("fd_client_master", O_RDONLY);
@@ -142,7 +143,7 @@ void loop(struct master data, int semId)
 
 int main(int argc, char * argv[])
 {
-    struct master data = { .highest_prime = -1, .how_many_prime = -1 };
+    struct master data = { .semId = -1, .highest_prime = -1, .how_many_prime = -1 };
 
     if (argc != 1)
         usage(argv[0], NULL);
@@ -159,6 +160,7 @@ int main(int argc, char * argv[])
 
     semId = semget(key, IPC_SIZE, IPC_CREAT | IPC_EXCL | 0641);
     myassert(semId != -1, "erreur : semget - unable to create the semaphore");
+    data.semId = semId;
 
     unsigned short values[IPC_SIZE];
     values[0] = 1 ; // sémaphore 0 (SC des clients) à 1
@@ -213,7 +215,7 @@ int main(int argc, char * argv[])
         args[2] = buffer;
 
         ret = execv("./worker", args);
-        myassert(ret != -1, "erreur : execv - unable to start process");
+        myassert(ret == 0, "erreur : execv - unable to start process");
     }
 
     ret = close(fds_master_worker[0]);
@@ -222,7 +224,7 @@ int main(int argc, char * argv[])
     myassert(ret == 0, "erreur : close - cannot close the pipe");
 
     // boucle infinie
-    loop(data, semId);
+    loop(data);
 
     // destruction des tubes nommés, des sémaphores, ...
     dispose_fifo("fd_client_master");

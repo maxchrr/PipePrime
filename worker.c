@@ -26,9 +26,9 @@ struct worker
 {
     /* data */
     int number;
-    int input_channel;
-    int master_channel;
-    int* next_worker_channel;
+    int fdIn;
+    int fdToMaster;
+    int* fdToWorker;
 };
 
 
@@ -54,9 +54,9 @@ static void parseArgs(int argc, char * argv[], struct worker* current_worker)
 
     // remplir la structure
     current_worker->number = atoi(argv[1]);
-    current_worker->input_channel = atoi(argv[2]);
-    current_worker->master_channel = atoi(argv[3]);
-    current_worker->next_worker_channel = NULL;
+    current_worker->fdIn = atoi(argv[2]);
+    current_worker->fdToMaster = atoi(argv[3]);
+    current_worker->fdToWorker = NULL;
 }
 
 /************************************************************************
@@ -82,14 +82,14 @@ void loop(struct worker* current_worker)
     	int c;
     	int ret;
 
-    	ret = reader(current_worker->input_channel, &c, sizeof(int));
+    	ret = reader(current_worker->fdIn, &c, sizeof(int));
     
     	if (c == -1) //ordre d'arêt
     	{
     		
-    		if (current_worker->next_worker_channel != NULL)
+    		if (current_worker->fdToWorker != NULL)
             	{ 
-    			ret = writer(*(current_worker->next_worker_channel), &c, sizeof(int));
+    			ret = writer(*(current_worker->fdToWorker), &c, sizeof(int));
     			
     			ret = wait(NULL);
         		myassert(ret != -1, "erreur : wait");
@@ -102,17 +102,17 @@ void loop(struct worker* current_worker)
     		if (c == current_worker->number)  // si c'est le même nombre (donc premier)
             	{
     			res = true;
-    			ret = writer(current_worker->master_channel, &res, sizeof(bool));
+    			ret = writer(current_worker->fdToMaster, &res, sizeof(bool));
     		}
             else if (c % current_worker->number == 0) // si il n'est pas premier
             	{
-    			ret = writer(current_worker->master_channel, &res, sizeof(bool));
+    			ret = writer(current_worker->fdToMaster, &res, sizeof(bool));
     		}
             else  // il faut le donner au worker suivant
             {
-            	if (current_worker->next_worker_channel != NULL) //il en existe 1
+            	if (current_worker->fdToWorker != NULL) //il en existe 1
             	{ 
-    			ret = writer(*(current_worker->next_worker_channel), &c, sizeof(int));
+    			ret = writer(*(current_worker->fdToWorker), &c, sizeof(int));
     		}
 		else // il n'en existe pas 
 		{
@@ -133,14 +133,14 @@ void loop(struct worker* current_worker)
     				argv[0] = s;
     				sprintf(s, "%d", fds[0]);
     				argv[1] = s;
-    				sprintf(s, "%d", current_worker->master_channel);
+    				sprintf(s, "%d", current_worker->fdToMaster);
     				argv[2] = s;
     				
 				ret = execv("./worker",argv);
 			}
 			
 			close(fds[0]);
-			current_worker->next_worker_channel = &fds[1];
+			current_worker->fdToWorker = &fds[1];
 			
     		}
     	    }		
