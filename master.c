@@ -215,7 +215,7 @@ int main(int argc, char * argv[])
         argv[2] = buffer;
         argv[3] = NULL;
 
-        ret = execv("./worker", args);
+        ret = execv("./worker", argv);
         myassert(ret == 0, "erreur : execv - unable to start process");
     }
 
