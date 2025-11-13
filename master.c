@@ -207,12 +207,13 @@ int main(int argc, char * argv[])
 
         char buffer[1000];
 
-        char* args[3];
-        args[0] = "-1";
+        char* argv[4];
+        argv[0] = "-1";
         sprintf(buffer, "%d", fds_master_worker[0]);
-        args[1] = buffer;
+        argv[1] = buffer;
         sprintf(buffer, "%d", fds_worker_master[1]);
-        args[2] = buffer;
+        argv[2] = buffer;
+        argv[3] = NULL;
 
         ret = execv("./worker", args);
         myassert(ret == 0, "erreur : execv - unable to start process");
