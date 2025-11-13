@@ -18,6 +18,8 @@
 #include "master_client.h"
 #include "master_worker.h"
 
+#include "io_utils.h"
+
 /************************************************************************
  * Données persistantes d'un master
  ************************************************************************/
@@ -27,9 +29,9 @@
 struct master
 {
     /* data */
-    int how_many_prime;
     int highest_prime;
-} master;
+    int how_many_prime;
+};
 
 
 /************************************************************************
@@ -48,7 +50,7 @@ static void usage(const char *exeName, const char *message)
 /************************************************************************
  * boucle principale de communication avec le client
  ************************************************************************/
-void loop(int semId)
+void loop(struct master data, int semId)
 {
     // boucle infinie :
     // - ouverture des tubes (cf. rq client.c)
@@ -117,12 +119,12 @@ void loop(int semId)
         }
         else if (d == ORDER_HOW_MANY_PRIME)
         {
-            int n = master.how_many_prime;
+            int n = data.how_many_prime;
             ret = reader(fd_client_master, &n, sizeof(int));
         }
         else if (d == ORDER_HIGHEST_PRIME)
         {
-            int n = master.highest_prime;
+            int n = data.highest_prime;
             ret = reader(fd_client_master, &n, sizeof(int));
         }
 
@@ -140,6 +142,8 @@ void loop(int semId)
 
 int main(int argc, char * argv[])
 {
+    struct master data = { .highest_prime = -1, .how_many_prime = -1 };
+
     if (argc != 1)
         usage(argv[0], NULL);
 
@@ -177,7 +181,7 @@ int main(int argc, char * argv[])
     create_fifo("fd_master_client"); // tube 1 (master -> client)
 
     // boucle infinie
-    loop(semId);
+    loop(data, semId);
 
     // destruction des tubes nommés, des sémaphores, ...
     dispose_fifo("fd_client_master");

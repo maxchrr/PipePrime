@@ -27,7 +27,4 @@ void dispose_fifo(const char* name);
 int open_fifo(const char* name, int mode);
 void close_fifo(int fifo, const char* name);
 
-ssize_t reader(int fd, void* buf, size_t size);
-ssize_t writer(int fd, const void* buf, size_t size);
-
 #endif

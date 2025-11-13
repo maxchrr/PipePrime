@@ -17,6 +17,8 @@
 
 #include "master_client.h"
 
+#include "io_utils.h"
+
 // chaines possibles pour le premier paramètre de la ligne de commande
 #define TK_STOP      "stop"
 #define TK_COMPUTE   "compute"

@@ -14,6 +14,8 @@
 
 #include "master_worker.h"
 
+#include "io_utils.h"
+
 /************************************************************************
  * Données persistantes d'un worker
  ************************************************************************/
@@ -26,8 +28,8 @@ struct worker
     int number;
     int input_channel;
     int master_channel;
-    int next_worker_channel;
-} worker;
+    int* next_worker_channel;
+};
 
 
 /************************************************************************
@@ -51,10 +53,10 @@ static void parseArgs(int argc, char * argv[], struct worker* current_worker)
         usage(argv[0], "Nombre d'arguments incorrect");
 
     // remplir la structure
-    (*current_worker).number = atoi(argv[1]);
-    (*current_worker).input_channel = atoi(argv[2]);
-    (*current_worker).master_channel = atoi(argv[3]);
-    (*current_worker).next_worker_channel = NULL;
+    current_worker->number = atoi(argv[1]);
+    current_worker->input_channel = atoi(argv[2]);
+    current_worker->master_channel = atoi(argv[3]);
+    current_worker->next_worker_channel = NULL;
 }
 
 /************************************************************************
@@ -79,13 +81,13 @@ void loop(struct worker* current_worker)
     	int c;
     	int ret;
 
-    	ret = reader((*current_worker).input_channel, &c, sizeof(int));
+    	ret = reader(current_worker->input_channel, &c, sizeof(int));
     
     	if (c == -1)
         {
     		if (current_worker->next_worker_channel != NULL)
             { 
-    			ret = writer((*current_worker).next_worker_channel, &c, sizeof(int));
+    			ret = writer(*(current_worker->next_worker_channel), &c, sizeof(int));
     			
     			ret = wait(NULL);
         		myassert(ret != -1, "erreur : wait");
@@ -98,11 +100,11 @@ void loop(struct worker* current_worker)
     		if (c == current_worker->number)
             {
     			res = true;
-    			ret = writer((*current_worker).master_channel, &res, sizeof(bool));
+    			ret = writer(current_worker->master_channel, &res, sizeof(bool));
     		}
             else if (c % current_worker->number == 0)
             {
-    			ret = writer((*current_worker).master_channel, &res, sizeof(bool));
+    			ret = writer(current_worker->master_channel, &res, sizeof(bool));
     		}
             else {
     		}		
@@ -117,14 +119,14 @@ void loop(struct worker* current_worker)
 
 int main(int argc, char * argv[])
 {
-    struct worker current_worker;
-    parseArgs(argc, argv , &current_worker);
+    struct worker* current_worker = NULL;
+    parseArgs(argc, argv , current_worker);
     
     // Si on est créé c'est qu'on est un nombre premier
     // Envoyer au master un message positif pour dire
     // que le nombre testé est bien premier
 
-    loop(&current_worker);
+    loop(current_worker);
 
     // libérer les ressources : fermeture des files descriptors par exemple
 
