@@ -77,16 +77,18 @@ void loop(struct worker* current_worker)
     //           - s'il n'y a pas de worker suivant, le créer
     
     bool stop = false;
-    do {
+    do 
+    {
     	int c;
     	int ret;
 
     	ret = reader(current_worker->input_channel, &c, sizeof(int));
     
-    	if (c == -1)
-        {
+    	if (c == -1) //ordre d'arêt
+    	{
+    		
     		if (current_worker->next_worker_channel != NULL)
-            { 
+            	{ 
     			ret = writer(*(current_worker->next_worker_channel), &c, sizeof(int));
     			
     			ret = wait(NULL);
@@ -97,17 +99,51 @@ void loop(struct worker* current_worker)
         else
         {
     		bool res = false;
-    		if (c == current_worker->number)
-            {
+    		if (c == current_worker->number)  // si c'est le même nombre (donc premier)
+            	{
     			res = true;
     			ret = writer(current_worker->master_channel, &res, sizeof(bool));
     		}
-            else if (c % current_worker->number == 0)
-            {
+            else if (c % current_worker->number == 0) // si il n'est pas premier
+            	{
     			ret = writer(current_worker->master_channel, &res, sizeof(bool));
     		}
-            else {
-    		}		
+            else  // il faut le donner au worker suivant
+            {
+            	if (current_worker->next_worker_channel != NULL) //il en existe 1
+            	{ 
+    			ret = writer(*(current_worker->next_worker_channel), &c, sizeof(int));
+    		}
+		else //il n'en existe pas 
+		{
+			int retf = fork();
+			myassert(ret != 0,"error worker: fork");
+			
+			int fds[2];
+			ret = pipe(fds); 
+			myassert(ret == 0,"error worker: creation pipe worker to worker");
+			
+			if (retf == 0)
+			{
+				close(fds[1]);
+				char s[1000];
+    				char *argv[3];
+
+    				sprintf(s, "%d", c);   // int to char*
+    				argv[0] = s;
+    				sprintf(s, "%d", fds[0]);
+    				argv[1] = s;
+    				sprintf(s, "%d", current_worker->master_channel);
+    				argv[2] = s;
+    				
+				ret = execv("./worker",argv);
+			}
+			
+			close(fds[0]);
+			current_worker->next_worker_channel = &fds[1];
+			
+    		}
+    	    }		
         }
     } while (!stop);
     
