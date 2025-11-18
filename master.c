@@ -106,9 +106,10 @@ void loop(struct master data)
 
         if (d == ORDER_STOP)
         {
+            printf("toto\n");
             const int os = -1;
             ret = writer(data.fdOut, &os, sizeof(int));
-
+	    printf("tata\n");
             const char* msg = "EOC\n";
             ret = writer(fd_master_client, msg, strlen(msg));
 
@@ -193,10 +194,10 @@ int main(int argc, char * argv[])
     //    1 : extrémité en écriture  (1 comme stdout)
     int fds_master_worker[2];
     int fds_worker_master[2];
-    create_fd(fds_master_worker);
-    create_fd(fds_worker_master);
-    data.fdOut = fds_master_worker[0];  // lecteur
-    data.fdIn = fds_worker_master[1];   // écrivain
+    create_fd(fds_master_worker,"fds_master_worker");
+    create_fd(fds_worker_master,"fds_worker_master");
+    data.fdOut = fds_master_worker[1];  // écrivain
+    data.fdIn = fds_worker_master[0];   // lecteur
 
     ret = fork();
     myassert(ret != -1, "erreur : fork");
@@ -204,9 +205,10 @@ int main(int argc, char * argv[])
     // fils
     if (ret == 0)
     {
-        dispose_fd(fds_master_worker[1]);
-        dispose_fd(fds_worker_master[0]);
-
+    	// supprimer les canaux inutiles
+        dispose_fd(fds_master_worker[1],"fds_master_worker - fils");
+        dispose_fd(fds_worker_master[0],"fds_worker_master - fils");
+	
         char buffer[1000];
         char* argv[5];
         argv[0] = "./worker";
@@ -216,20 +218,27 @@ int main(int argc, char * argv[])
         sprintf(buffer, "%d", fds_worker_master[1]);
         argv[3] = buffer;
         argv[4] = NULL;
-
+	
+	
         ret = execv("./worker", argv);
         myassert(ret == 0, "erreur : execv - unable to start process");
     }
 
-    dispose_fd(fds_master_worker[0]);
-    dispose_fd(fds_worker_master[1]);
+    
+    dispose_fd(fds_master_worker[0],"fds_master_worker");
+    dispose_fd(fds_worker_master[1],"fds_worker_master");
 
     // boucle infinie
     loop(data);
-
+    
+    printf("sorti boucle\n");
     // destruction des tubes nommés, des sémaphores, ...
+    dispose_fd(fds_master_worker[1],"fds_master_worker");
+    dispose_fd(fds_worker_master[0],"fds_worker_master");
+    
     dispose_fifo("fd_client_master");
     dispose_fifo("fd_master_client");
+    
 
     ret = semctl(semId, -1, IPC_RMID);
     myassert(semId != -1, "erreur : semctl - unable to destroy the semaphore");

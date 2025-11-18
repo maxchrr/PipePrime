@@ -86,7 +86,7 @@ void loop(struct worker* current_worker)
     
         if (c == -1) //ordre d'arêt
         {
-            
+            printf("ici\n");
             if (current_worker->fdToWorker != NULL)
                 { 
                 ret = writer(*(current_worker->fdToWorker), &c, sizeof(int));
@@ -94,6 +94,7 @@ void loop(struct worker* current_worker)
                 ret = wait(NULL);
                 myassert(ret != -1, "erreur : wait");
             }
+            
             stop = true;
         }
         else
@@ -160,6 +161,7 @@ void loop(struct worker* current_worker)
 
 int main(int argc, char * argv[])
 {
+    
     struct worker* current_worker = NULL;
     parseArgs(argc, argv , current_worker);
     
@@ -170,6 +172,9 @@ int main(int argc, char * argv[])
     loop(current_worker);
 
     // libérer les ressources : fermeture des files descriptors par exemple
+    dispose_fd(current_worker->fdIn,"fds_master_worker - fils");
+    dispose_fd(current_worker->fdToMaster,"fds_worker_master - fils");
+    
 
     return EXIT_SUCCESS;
 }
