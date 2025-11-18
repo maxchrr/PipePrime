@@ -79,72 +79,76 @@ void loop(struct worker* current_worker)
     bool stop = false;
     do 
     {
-    	int c;
-    	int ret;
+        int c;
+        ssize_t ret;
 
-    	ret = reader(current_worker->fdIn, &c, sizeof(int));
+        ret = reader(current_worker->fdIn, &c, sizeof(int));
     
-    	if (c == -1) //ordre d'arêt
-    	{
-    		
-    		if (current_worker->fdToWorker != NULL)
-            	{ 
-    			ret = writer(*(current_worker->fdToWorker), &c, sizeof(int));
-    			
-    			ret = wait(NULL);
-        		myassert(ret != -1, "erreur : wait");
-    		}
-    		stop = true;
-    	}
+        if (c == -1) //ordre d'arêt
+        {
+            
+            if (current_worker->fdToWorker != NULL)
+                { 
+                ret = writer(*(current_worker->fdToWorker), &c, sizeof(int));
+                
+                ret = wait(NULL);
+                myassert(ret != -1, "erreur : wait");
+            }
+            stop = true;
+        }
         else
         {
-    		bool res = false;
-    		if (c == current_worker->number)  // si c'est le même nombre (donc premier)
-            	{
-    			res = true;
-    			ret = writer(current_worker->fdToMaster, &res, sizeof(bool));
-    		}
+            bool res = false;
+            if (c == current_worker->number)  // si c'est le même nombre (donc premier)
+            {
+                res = true;
+                ret = writer(current_worker->fdToMaster, &res, sizeof(bool));
+            }
             else if (c % current_worker->number == 0) // si il n'est pas premier
-            	{
-    			ret = writer(current_worker->fdToMaster, &res, sizeof(bool));
-    		}
+            {
+                ret = writer(current_worker->fdToMaster, &res, sizeof(bool));
+            }
             else  // il faut le donner au worker suivant
             {
-            	if (current_worker->fdToWorker != NULL) //il en existe 1
-            	{ 
-    			ret = writer(*(current_worker->fdToWorker), &c, sizeof(int));
-    		}
-		else // il n'en existe pas 
-		{
-			int retf = fork();
-			myassert(ret != 0,"error worker: fork");
-			
-			int fds[2];
-			ret = pipe(fds); 
-			myassert(ret == 0,"error worker: creation pipe worker to worker");
-			
-			if (retf == 0)
-			{
-				close(fds[1]);
-				char s[1000];
-    				char *argv[4];
+                if (current_worker->fdToWorker != NULL) //il en existe 1
+                { 
+                    ret = writer(*(current_worker->fdToWorker), &c, sizeof(int));
+                }
+                else // il n'en existe pas 
+                {
+                    ssize_t retf = fork();
+                    myassert(ret != -1, "erreur : fork");
+                
+                    int fds[2];
+                    ret = pipe(fds); 
+                    myassert(ret != -1, "erreur : pipe - cannot create the pipe");
+                
+                    if (retf == 0)
+                    {
+                        ret = close(fds[1]);
+                        myassert(ret == 0, "erreur : close - cannot close the pipe");
+                        
+                        char buffer[1000];
+                        char* argv[5];
 
-    				sprintf(s, "%d", c);   // int to char*
-    				argv[0] = s;
-    				sprintf(s, "%d", fds[0]);
-    				argv[1] = s;
-    				sprintf(s, "%d", current_worker->fdToMaster);
-    				argv[2] = s;
-                    argv[3] = NULL;
-    				
-				ret = execv("./worker",argv);
-			}
-			
-			close(fds[0]);
-			current_worker->fdToWorker = &fds[1];
-			
-    		}
-    	    }		
+                        argv[0] = "./worker";
+                        sprintf(buffer, "%d", c);   // int to char*
+                        argv[1] = buffer;
+                        sprintf(buffer, "%d", fds[0]);
+                        argv[2] = buffer;
+                        sprintf(buffer, "%d", current_worker->fdToMaster);
+                        argv[3] = buffer;
+                        argv[4] = NULL;
+                        
+                        ret = execv("./worker",argv);
+                    }
+                
+                    ret = close(fds[0]);
+                    myassert(ret == 0, "erreur : close - cannot close the pipe");
+                
+                    current_worker->fdToWorker = &fds[1];
+                }
+            }
         }
     } while (!stop);
     
