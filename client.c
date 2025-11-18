@@ -171,9 +171,16 @@ int main(int argc, char * argv[])
         else if (order == ORDER_COMPUTE_PRIME)
         {
             ret = writer(fd_client_master, &order, sizeof(int));
+            ret = writer(fd_client_master, &number, sizeof(int));
             
-            char c;
-            ret = reader(fd_master_client, &c, sizeof(char));
+            bool c;
+            ret = reader(fd_master_client, &c, sizeof(bool));
+            
+            if (c) {
+            	printf("premier\n");
+            } else {
+            	printf("non premier\n");
+            }
         }
         else if (order == ORDER_HOW_MANY_PRIME)
         {

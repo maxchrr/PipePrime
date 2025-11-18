@@ -165,15 +165,18 @@ void loop(struct worker* current_worker)
 int main(int argc, char * argv[])
 {
     
-    struct worker* current_worker =malloc(sizeof(struct worker));
+    struct worker* current_worker = malloc(sizeof(struct worker));
     parseArgs(argc, argv , current_worker);
     
     // Si on est créé c'est qu'on est un nombre premier
     // Envoyer au master un message positif pour dire
     // que le nombre testé est bien premier
-    
+    ssize_t ret;
+    bool res = true;
+    ret = writer(current_worker->fdToMaster, &res, sizeof(bool));
+    myassert(ret != -1, "erreur : writer");
     loop(current_worker);
-
+	
     // libérer les ressources : fermeture des files descriptors par exemple
     dispose_fd(current_worker->fdIn,"fds_master_worker - fils");
     dispose_fd(current_worker->fdToMaster,"fds_worker_master - fils");

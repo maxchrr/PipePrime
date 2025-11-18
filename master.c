@@ -119,6 +119,12 @@ void loop(struct master data)
         {
             int n;
             ret = reader(fd_client_master, &n, sizeof(int));
+            
+            ret = writer(data.fdOut, &n,sizeof(int));
+            bool c;
+            ret = reader(data.fdIn, &c, sizeof(bool));
+            
+            ret = writer(fd_master_client, &c, sizeof(bool));
         }
         else if (d == ORDER_HOW_MANY_PRIME)
         {
