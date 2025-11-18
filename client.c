@@ -131,26 +131,26 @@ int main(int argc, char * argv[])
     {
         key_t key;
         int semId;
-    	int ret;
-    	
-    	key = ftok(IPC_PATH_NAME, IPC_ID);
+        int ret;
+        
+        key = ftok(IPC_PATH_NAME, IPC_ID);
         myassert(key != -1, "erreur : ftok - le fichier n'existe pas ou n'est pas accessible");
     
-    	semId = semget(key, IPC_SIZE, 0);
-	    myassert(semId != -1, "erreur : semget");
-	
+        semId = semget(key, IPC_SIZE, 0);
+        myassert(semId != -1, "erreur : semget");
+    
         // entrée SC
         struct sembuf entree_critique_client =  {0, -1, 0};
         struct sembuf entree_attmut_client =    {1, -1, 0};
-	    struct sembuf entree_attmut_master =    {2, 1, 0};
-    	
-    	ret = semop(semId, &entree_critique_client, 1);
-    	myassert(ret != -1, "erreur : semop : entree_critique_client");
-    	
-    	ret = semop(semId, &entree_attmut_master, 1);
+        struct sembuf entree_attmut_master =    {2, 1, 0};
+        
+        ret = semop(semId, &entree_critique_client, 1);
+        myassert(ret != -1, "erreur : semop : entree_critique_client");
+        
+        ret = semop(semId, &entree_attmut_master, 1);
         myassert(ret != -1, "erreur : semop : entree_attmut_master");
-	
-	    ret = semop(semId, &entree_attmut_client, 1);
+    
+        ret = semop(semId, &entree_attmut_client, 1);
         myassert(ret != -1, "erreur : semop : entree_attmut_client");
 
         // ouverture tubes
@@ -192,14 +192,14 @@ int main(int argc, char * argv[])
 
         // sortie SC
         struct sembuf sortie_critique_client =  {0, 1, 0};
-    	
-    	ret = semop(semId, &sortie_critique_client, 1);
-    	myassert(ret != -1, "erreur : semop : sortie_critique_client");
+        
+        ret = semop(semId, &sortie_critique_client, 1);
+        myassert(ret != -1, "erreur : semop : sortie_critique_client");
 
         // libération des ressources
         close_fifo(fd_client_master, "fd_client_master");
         close_fifo(fd_master_client, "fd_master_client");
     }
-	
+
     return EXIT_SUCCESS;
 }
