@@ -51,12 +51,14 @@ static void parseArgs(int argc, char * argv[], struct worker* current_worker)
 {
     if (argc != 4)
         usage(argv[0], "Nombre d'arguments incorrect");
-
+    
     // remplir la structure
     current_worker->number = atoi(argv[1]);
     current_worker->fdIn = atoi(argv[2]);
     current_worker->fdToMaster = atoi(argv[3]);
     current_worker->fdToWorker = NULL;
+    
+    
 }
 
 /************************************************************************
@@ -81,19 +83,20 @@ void loop(struct worker* current_worker)
     {
         int c;
         ssize_t ret;
-
+	
         ret = reader(current_worker->fdIn, &c, sizeof(int));
-    
+    	printf("%d\n",c);
         if (c == -1) //ordre d'arêt
         {
-            printf("ici\n");
+            
             if (current_worker->fdToWorker != NULL)
                 { 
                 ret = writer(*(current_worker->fdToWorker), &c, sizeof(int));
                 
                 ret = wait(NULL);
                 myassert(ret != -1, "erreur : wait");
-            }
+          	 
+          	}
             
             stop = true;
         }
@@ -162,19 +165,19 @@ void loop(struct worker* current_worker)
 int main(int argc, char * argv[])
 {
     
-    struct worker* current_worker = NULL;
+    struct worker* current_worker =malloc(sizeof(struct worker));
     parseArgs(argc, argv , current_worker);
     
     // Si on est créé c'est qu'on est un nombre premier
     // Envoyer au master un message positif pour dire
     // que le nombre testé est bien premier
-
+    
     loop(current_worker);
 
     // libérer les ressources : fermeture des files descriptors par exemple
     dispose_fd(current_worker->fdIn,"fds_master_worker - fils");
     dispose_fd(current_worker->fdToMaster,"fds_worker_master - fils");
-    
+    free(current_worker);
 
     return EXIT_SUCCESS;
 }

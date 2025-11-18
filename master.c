@@ -209,16 +209,18 @@ int main(int argc, char * argv[])
         dispose_fd(fds_master_worker[1],"fds_master_worker - fils");
         dispose_fd(fds_worker_master[0],"fds_worker_master - fils");
 	
-        char buffer[1000];
+        char buffer1[1000];
+        char buffer2[1000];
         char* argv[5];
         argv[0] = "./worker";
         argv[1] = "1";
-        sprintf(buffer, "%d", fds_master_worker[0]);
-        argv[2] = buffer;
-        sprintf(buffer, "%d", fds_worker_master[1]);
-        argv[3] = buffer;
+        sprintf(buffer1, "%d", fds_master_worker[0]);
+        
+        argv[2] = buffer1;
+        sprintf(buffer2, "%d", fds_worker_master[1]);
+        
+        argv[3] = buffer2;
         argv[4] = NULL;
-	
 	
         ret = execv("./worker", argv);
         myassert(ret == 0, "erreur : execv - unable to start process");
