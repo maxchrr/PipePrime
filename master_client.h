@@ -27,7 +27,7 @@ void dispose_fifo(const char* name);
 int open_fifo(const char* name, int mode);
 void close_fifo(int fifo, const char* name);
 
-void create_fd(int* fd);
-void dispose_fd(const int fd);
+void create_fd(int* fd, const char* name);
+void dispose_fd(const int fd, const char* name);
 
 #endif
