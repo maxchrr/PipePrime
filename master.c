@@ -29,6 +29,8 @@
 struct master
 {
     /* data */
+    int fdIn;
+    int fdOut;
     int semId;
     int highest_prime;
     int how_many_prime;
@@ -97,8 +99,6 @@ void loop(struct master data)
         int fd_client_master = open_fifo("fd_client_master", O_RDONLY);
         int fd_master_client = open_fifo("fd_master_client", O_WRONLY);
 
-        // TODO: tubes anonymes worker
-
         int d;
         ret = reader(fd_client_master, &d, sizeof(int));
 
@@ -106,7 +106,8 @@ void loop(struct master data)
 
         if (d == ORDER_STOP)
         {
-            // TODO: communication worker
+            const int os = -1;
+            ret = writer(data.fdOut, &os, sizeof(int));
 
             const char* msg = "EOC\n";
             ret = writer(fd_master_client, msg, strlen(msg));
@@ -120,13 +121,17 @@ void loop(struct master data)
         }
         else if (d == ORDER_HOW_MANY_PRIME)
         {
-            int n = data.how_many_prime;
-            ret = reader(fd_client_master, &n, sizeof(int));
+            int n;
+            ret = reader(data.fdIn, &n, sizeof(int));
+            data.how_many_prime = n;
+            ret = writer(fd_client_master, &data.how_many_prime, sizeof(int));
         }
         else if (d == ORDER_HIGHEST_PRIME)
         {
-            int n = data.highest_prime;
-            ret = reader(fd_client_master, &n, sizeof(int));
+            int n;
+            ret = reader(data.fdIn, &n, sizeof(int));
+            data.highest_prime = n;
+            ret = reader(fd_client_master, &data.highest_prime, sizeof(int));
         }
 
         close_fifo(fd_client_master, "fd_client_master");
@@ -143,7 +148,7 @@ void loop(struct master data)
 
 int main(int argc, char * argv[])
 {
-    struct master data = { .semId = -1, .highest_prime = -1, .how_many_prime = -1 };
+    struct master data = { .fdIn = -1, .fdOut = -1, .semId = -1, .highest_prime = -1, .how_many_prime = -1 };
 
     if (argc != 1)
         usage(argv[0], NULL);
@@ -188,11 +193,10 @@ int main(int argc, char * argv[])
     //    1 : extrémité en écriture  (1 comme stdout)
     int fds_master_worker[2];
     int fds_worker_master[2];
-
-    ret = pipe(fds_master_worker);
-    myassert(ret != -1, "erreur : pipe - cannot create the pipe");
-    ret = pipe(fds_worker_master);
-    myassert(ret != -1, "erreur : pipe - cannot create the pipe");
+    create_fd(fds_master_worker);
+    create_fd(fds_worker_master);
+    data.fdOut = fds_master_worker[0];  // lecteur
+    data.fdIn = fds_worker_master[1];   // écrivain
 
     ret = fork();
     myassert(ret != -1, "erreur : fork");
@@ -200,29 +204,25 @@ int main(int argc, char * argv[])
     // fils
     if (ret == 0)
     {
-        ret = close(fds_master_worker[1]);
-        myassert(ret == 0, "erreur : close - cannot close the pipe");
-        ret = close(fds_worker_master[0]);
-        myassert(ret == 0, "erreur : close - cannot close the pipe");
+        dispose_fd(fds_master_worker[1]);
+        dispose_fd(fds_worker_master[0]);
 
         char buffer[1000];
-
-        char* argv[4];
-        argv[0] = "-1";
+        char* argv[5];
+        argv[0] = "./worker";
+        argv[1] = "1";
         sprintf(buffer, "%d", fds_master_worker[0]);
-        argv[1] = buffer;
-        sprintf(buffer, "%d", fds_worker_master[1]);
         argv[2] = buffer;
-        argv[3] = NULL;
+        sprintf(buffer, "%d", fds_worker_master[1]);
+        argv[3] = buffer;
+        argv[4] = NULL;
 
         ret = execv("./worker", argv);
         myassert(ret == 0, "erreur : execv - unable to start process");
     }
 
-    ret = close(fds_master_worker[0]);
-    myassert(ret == 0, "erreur : close - cannot close the pipe");
-    ret = close(fds_worker_master[1]);
-    myassert(ret == 0, "erreur : close - cannot close the pipe");
+    dispose_fd(fds_master_worker[0]);
+    dispose_fd(fds_worker_master[1]);
 
     // boucle infinie
     loop(data);

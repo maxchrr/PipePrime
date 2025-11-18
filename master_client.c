@@ -42,9 +42,23 @@ int open_fifo(const char* name, int mode)
 
 void close_fifo(int fd, const char* name)
 {
-        int ret = close(fd);
+        ssize_t ret = close(fd);
         myassert(ret == 0, "erreur : close - cannot close fifo");
         printf("[MASTER-CLIENT] The fifo %s is close\n", name);
+}
+
+void create_fd(int* fd)
+{
+    ssize_t ret = pipe(fd);
+    myassert(ret != -1, "erreur : pipe - cannot create the fd");
+    printf("[MASTER] Created fd %d\n", *fd);
+}
+
+void dispose_fd(const int fd) 
+{
+    ssize_t ret = close(fd);
+    myassert(ret == 0, "erreur : close - cannot close the fd");
+    printf("[MASTER] Dispose fd %d\n", fd);
 }
 
 // fonctions éventuelles proposées dans le .h
