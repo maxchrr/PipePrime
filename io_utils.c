@@ -7,7 +7,7 @@ ssize_t reader(int fd, void* buf, size_t size) {
     ssize_t ret = -1;
     while (ret != 0) {
         ret = read(fd, ptr + total, size - total);
-        myassert(ret != -1, "Erreur : reading on fifo failed");
+        myassert(ret != -1, "Erreur : reading on fd failed");
         total += ret;
     }
     return total;
@@ -19,7 +19,7 @@ ssize_t writer(int fd, const void* buf, size_t size) {
     ssize_t ret = -1;
     while (ret != 0) {
         ret = write(fd, ptr + total, size - total);
-        myassert(ret != -1, "Erreur : writing on fifo failed");
+        myassert(ret != -1, "Erreur : writing on fd failed");
         total += ret;
     }
     return total;
