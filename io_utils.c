@@ -1,5 +1,21 @@
+#include <stdio.h>
+
 #include "io_utils.h"
 #include "myassert.h"
+
+void create_fd(int* fd, const char* name)
+{
+    ssize_t ret = pipe(fd);
+    myassert(ret != -1, "erreur : pipe - cannot create the fd");
+    printf("[MASTER] Created fd %d (%s)\n", *fd, name);
+}
+
+void dispose_fd(const int fd, const char* name) 
+{
+    ssize_t ret = close(fd);
+    myassert(ret == 0, "erreur : close - cannot close the fd");
+    printf("[MASTER] Dispose fd %d (%s)\n", fd, name);
+}
 
 ssize_t reader(int fd, void* buf, size_t size) {
     size_t total = 0;
