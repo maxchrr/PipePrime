@@ -88,14 +88,16 @@ void loop(struct master data)
         ssize_t ret;
 
         struct sembuf entree_attmut_client =    {1, 1, 0};
-	    struct sembuf entree_attmut_master =    {2, -1, 0};
-
+	struct sembuf entree_attmut_master =    {2, -1, 0};
+	
+	printf("ici\n");
         ret = semop(data.semId, &entree_attmut_client, 1);
         myassert(ret != -1, "erreur : semop : entree_attmut_client");
 
         ret = semop(data.semId, &entree_attmut_master, 1);
         myassert(ret != -1, "erreur : semop : entree_attmut_master");
-
+	
+	printf ("la\n");
         int fd_client_master = open_fifo("fd_client_master", O_RDONLY);
         int fd_master_client = open_fifo("fd_master_client", O_WRONLY);
 
@@ -118,10 +120,22 @@ void loop(struct master data)
         else if (d == ORDER_COMPUTE_PRIME)
         {
             int n;
+            bool c;
             ret = reader(fd_client_master, &n, sizeof(int));
+            if (n > data.highest_prime){
+            	for (int i =data.highest_prime; i < n ; i++){
+            		ret = writer(data.fdOut, &i,sizeof(int));
+            	
+            		ret = reader(data.fdIn, &c, sizeof(bool));
+            		
+            		if (c) {
+            			data.highest_prime=i;
+            		}
+            	}
+            }
             
             ret = writer(data.fdOut, &n,sizeof(int));
-            bool c;
+            
             ret = reader(data.fdIn, &c, sizeof(bool));
             
             ret = writer(fd_master_client, &c, sizeof(bool));
@@ -155,7 +169,7 @@ void loop(struct master data)
 
 int main(int argc, char * argv[])
 {
-    struct master data = { .fdIn = -1, .fdOut = -1, .semId = -1, .highest_prime = -1, .how_many_prime = -1 };
+    struct master data = { .fdIn = -1, .fdOut = -1, .semId = -1, .highest_prime = 2, .how_many_prime = 1 };
 
     if (argc != 1)
         usage(argv[0], NULL);
@@ -219,7 +233,7 @@ int main(int argc, char * argv[])
         char buffer2[1000];
         char* argv[5];
         argv[0] = "./worker";
-        argv[1] = "1";
+        argv[1] = "2";
         sprintf(buffer1, "%d", fds_master_worker[0]);
         
         argv[2] = buffer1;
