@@ -187,7 +187,6 @@ int create_ipc(const char* path_name, const int id, const int size, const int fl
 {
 	key_t key;
 	int semId;
-	ssize_t ret;
 
 	key = ftok(path_name, id);
 	myassert(key != -1, "'ftok' -> le descripteur n'existe pas");
@@ -218,7 +217,7 @@ void dispose_ipc(const int semId)
 {
 	ssize_t ret;
 	ret = semctl(semId, -1, IPC_RMID);
-	myassert(semId != -1, "'semctl' -> impossible de détruire le sémaphore");
+	myassert(ret != -1, "'semctl' -> impossible de détruire le sémaphore");
 }
 
 /************************************************************************
@@ -227,7 +226,6 @@ void dispose_ipc(const int semId)
 
 int main(int argc, char * argv[])
 {
-	int semId;
 	ssize_t ret;
 	struct master data = {
 		.fdIn = -1,
@@ -286,7 +284,7 @@ int main(int argc, char * argv[])
 	dispose_fd(PROCESS, fds_worker_master[0], "master");
 	dispose_fifo("fd_client_master");
 	dispose_fifo("fd_master_client");
-	dispose_ipc(semId);
+	dispose_ipc(data.semId);
 
 	return EXIT_SUCCESS;
 }
