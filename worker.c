@@ -151,6 +151,8 @@ void loop(struct worker* current_worker)
                     myassert(ret == 0, "erreur : close - cannot close the pipe");
                 
                     current_worker->fdToWorker = &fds[1];
+                    
+                    ret = writer(*(current_worker->fdToWorker), &c, sizeof(int));
                 }
             }
         }
