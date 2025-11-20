@@ -16,6 +16,8 @@
 
 #include "io_utils.h"
 
+#define PROCESS "worker"
+
 /************************************************************************
  * Données persistantes d'un worker
  ************************************************************************/
@@ -121,19 +123,18 @@ void loop(struct worker* current_worker)
 				else // il n'en existe pas 
 				{
 					
-					int fds_me_worker[2];
+					int fds_master_worker[2];
 					
-					create_fd(fds_me_worker,"fds_me_worker");
+					create_fd(PROCESS, fds_master_worker,"fds_me_worker");
 					
-					current_worker->fdToWorker = &fds_me_worker[1];  // écrivain
+					current_worker->fdToWorker = &fds_master_worker[1];  // écrivain
 
 					ret = fork();
 					myassert(ret != -1, "erreur : fork");
 				
 					if (ret == 0)
 					{
-						dispose_fd(fds_me_worker[1],"fds_me_worker");
-						myassert(ret == 0, "erreur : close - cannot close the pipe");
+						dispose_fd(PROCESS, fds_master_worker[1],"fds_me_worker");
 					
 						char buffer1[1000];
 						char buffer2[1000];
@@ -145,7 +146,7 @@ void loop(struct worker* current_worker)
 						sprintf(buffer1, "%d", c);   // int to char*
 						argv[1] = buffer1;
 						
-						sprintf(buffer2, "%d", fds_me_worker[0]);
+						sprintf(buffer2, "%d", fds_master_worker[0]);
 						argv[2] = buffer2;
 						
 						sprintf(buffer3, "%d", current_worker->fdToMaster);
@@ -156,7 +157,7 @@ void loop(struct worker* current_worker)
 						ret = execv("./worker",argv);
 					}
 				
-					dispose_fd(fds_me_worker[0],"fds_me_worker");
+					dispose_fd(PROCESS, fds_master_worker[0],"fds_me_worker");
 				
 					ret = writer(*(current_worker->fdToWorker), &c, sizeof(int));
 				}
@@ -185,8 +186,8 @@ int main(int argc, char * argv[])
 	loop(current_worker);
 		
 	// libérer les ressources : fermeture des files descriptors par exemple
-	dispose_fd(current_worker->fdIn,"fds_master_worker - fils");
-	dispose_fd(current_worker->fdToMaster,"fds_worker_master - fils");
+	dispose_fd(PROCESS, current_worker->fdIn, "worker");
+	dispose_fd(PROCESS, current_worker->fdToMaster, "worker");
 	free(current_worker);
 
 	return EXIT_SUCCESS;
