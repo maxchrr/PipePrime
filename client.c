@@ -123,6 +123,7 @@ void order_stop(const int fd_master_client)
 		ret = reader(fd_master_client, &c, sizeof(char));
 		putchar(c);
 	} while (ret != 0);
+	printf("Arrêt du programme\n");
 }
 
 void order_compute(const int fd_master_client)
@@ -130,22 +131,22 @@ void order_compute(const int fd_master_client)
 	bool c;
 	reader(fd_master_client, &c, sizeof(bool));
 
-	if (c) printf("premier\n");
-	else printf("non premier\n");
+	if (c) printf("Le nombre est premier\n");
+	else printf("Le nombre n'est pas premier\n");
 }
 
 void order_how_many(const int fd_master_client)
 {
 	char c;
 	reader(fd_master_client, &c, sizeof(char));
-	printf("we know %d prime number\n", c);
+	printf("%d nombres premiers ont été calculés\n", c);
 }
 
 void order_highest(const int fd_master_client)
 {
 	int c;
 	reader(fd_master_client, &c, sizeof(int));
-	printf("the highest prime known : %d\n", c);
+	printf("Le nombre premier le plus haut est %d\n", c);
 }
 
 /************************************************************************
