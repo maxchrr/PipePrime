@@ -132,25 +132,31 @@ void loop(struct worker* current_worker)
 				
 					if (ret == 0)
 					{
-						ret = close(fds_me_worker[1]);
+						dispose_fd(fds_me_worker[1],"fds_me_worker");
 						myassert(ret == 0, "erreur : close - cannot close the pipe");
 					
-						char buffer[1000];
+						char buffer1[1000];
+						char buffer2[1000];
+						char buffer3[1000];
 						char* argv[5];
+						
 						argv[0] = "./worker";
-						sprintf(buffer, "%d", c);   // int to char*
-						argv[1] = buffer;
-						sprintf(buffer, "%d", fds_me_worker[0]);
-						argv[2] = buffer;
-						sprintf(buffer, "%d", current_worker->fdToMaster);
-						argv[3] = buffer;
+						
+						sprintf(buffer1, "%d", c);   // int to char*
+						argv[1] = buffer1;
+						
+						sprintf(buffer2, "%d", fds_me_worker[0]);
+						argv[2] = buffer2;
+						
+						sprintf(buffer3, "%d", current_worker->fdToMaster);
+						argv[3] = buffer3;
+						
 						argv[4] = NULL;
 					
 						ret = execv("./worker",argv);
 					}
 				
-					ret = close(fds_me_worker[0]);
-					myassert(ret == 0, "erreur : close - cannot close the pipe");
+					dispose_fd(fds_me_worker[0],"fds_me_worker");
 				
 					ret = writer(*(current_worker->fdToWorker), &c, sizeof(int));
 				}

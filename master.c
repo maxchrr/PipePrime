@@ -108,10 +108,10 @@ void loop(struct master data)
 
 		if (d == ORDER_STOP)
 		{
-			printf("toto\n");
+			
 			const int os = -1;
 			ret = writer(data.fdOut, &os, sizeof(int));
-			printf("tata\n");
+			
 			const char* msg = "EOC\n";
 			ret = writer(fd_master_client, msg, strlen(msg));
 
@@ -123,13 +123,14 @@ void loop(struct master data)
 			bool c;
 			ret = reader(fd_client_master, &n, sizeof(int));
 			if (n > data.highest_prime){
-				for (int i =data.highest_prime; i < n ; i++){
+				int tmp = data.highest_prime;
+				for (int i = tmp; i < n ; i++){
 					ret = writer(data.fdOut, &i,sizeof(int));
 				
 					ret = reader(data.fdIn, &c, sizeof(bool));
 					
 					if (c) {
-						data.highest_prime=i;
+						data.highest_prime = i;
 					}
 				}
 			}
@@ -149,10 +150,8 @@ void loop(struct master data)
 		}
 		else if (d == ORDER_HIGHEST_PRIME)
 		{
-			int n;
-			ret = reader(data.fdIn, &n, sizeof(int));
-			data.highest_prime = n;
-			ret = reader(fd_client_master, &data.highest_prime, sizeof(int));
+			
+			ret = writer(fd_master_client, &data.highest_prime, sizeof(int));
 		}
 
 		close_fifo(fd_client_master, "fd_client_master");

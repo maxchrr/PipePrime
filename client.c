@@ -193,8 +193,10 @@ int main(int argc, char * argv[])
 		{
 			ret = writer(fd_client_master, &order, sizeof(int));
 
-			char c;
-			ret = reader(fd_master_client, &c, sizeof(char));
+			int c;
+			ret = reader(fd_master_client, &c, sizeof(int));
+			printf("the highest prime known : %d\n", c);
+			
 		}
 
 		// sortie SC
