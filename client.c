@@ -104,13 +104,6 @@ int get_ipc(const char* path_name, const int id, const int size, const int flags
 	return semId;
 }
 
-void op_ipc(const int semId, struct sembuf* ops, size_t n)
-{
-	ssize_t ret;
-	ret = semop(semId, ops, n);
-	myassert(ret != -1, "'semop''");
-}
-
 /************************************************************************
  * Fonctions annexes ordres
  ************************************************************************/
@@ -128,10 +121,10 @@ void order_stop(const int fd_master_client)
 
 void order_compute(const int fd_master_client)
 {
-	bool c;
-	reader(fd_master_client, &c, sizeof(bool));
+	bool res;
+	reader(fd_master_client, &res, sizeof(bool));
 
-	if (c) printf("Le nombre est premier\n");
+	if (res) printf("Le nombre est premier\n");
 	else printf("Le nombre n'est pas premier\n");
 }
 
@@ -157,7 +150,7 @@ int main(int argc, char * argv[])
 {
 	int number = 0;
 	int order = parseArgs(argc, argv, &number);
-	printf("%d\n", order); // pour éviter le warning
+	//printf("ordre (client) : %d\n", order); // pour éviter le warning
 
 	// order peut valoir 5 valeurs (cf. master_client.h) :
 	//      - ORDER_COMPUTE_PRIME_LOCAL
@@ -194,40 +187,35 @@ int main(int argc, char * argv[])
 	semId = get_ipc(IPC_PATH_NAME, IPC_ID, IPC_SIZE, 0);
 
 	// entrée SC
-	struct sembuf entree_critique_client =  {0, -1, 0};
-	struct sembuf entree_attmut_client =    {1, -1, 0};
-	struct sembuf entree_attmut_master =    {2, 1, 0};
+	struct sembuf critical_point_client =	{0, -1, 0};
+	struct sembuf wait_point_client =	{1, -1, 0};
+	struct sembuf wait_point_master =	{2, 1, 0};
 
-	op_ipc(semId, &entree_critique_client, 1);
-	op_ipc(semId, &entree_attmut_master, 1);
-	op_ipc(semId, &entree_attmut_client, 1);
+	op_ipc(semId, &critical_point_client, 1);
+	op_ipc(semId, &wait_point_master, 1);
+	op_ipc(semId, &wait_point_client, 1);
 
 	// ouverture tubes
 	int fd_client_master = open_fifo(PROCESS, "fd_client_master", O_WRONLY);
 	int fd_master_client = open_fifo(PROCESS, "fd_master_client", O_RDONLY);
 
-	switch (order)
+	writer(fd_client_master, &order, sizeof(int));
+	if (order == ORDER_STOP)
 	{
-	case ORDER_STOP:
-		writer(fd_client_master, &order, sizeof(int));
 		order_stop(fd_master_client);
-		break;
-	case ORDER_COMPUTE_PRIME:
-		writer(fd_client_master, &order, sizeof(int));
+	}
+	else if (order == ORDER_COMPUTE_PRIME)
+	{
 		writer(fd_client_master, &number, sizeof(int));
 		order_compute(fd_master_client);
-		break;
-	case ORDER_HOW_MANY_PRIME:
-		writer(fd_client_master, &order, sizeof(int));
+	}
+	else if (order == ORDER_HOW_MANY_PRIME)
+	{
 		order_how_many(fd_master_client);
-		break;
-	case ORDER_HIGHEST_PRIME:
-		writer(fd_client_master, &order, sizeof(int));
+	}
+	else if (order == ORDER_HIGHEST_PRIME)
+	{
 		order_highest(fd_master_client);
-		break;
-	default:
-		fprintf(stderr, "erreur");
-		break;
 	}
 
 	// sortie SC

@@ -12,6 +12,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/sem.h>
 
 #include "myassert.h"
 
@@ -45,6 +46,13 @@ void close_fifo(const char* PROCESS, int fd, const char* name)
 	ssize_t ret = close(fd);
 	myassert(ret == 0, "'close' -> impossible de fermer le fifo");
 	printf("[%s] Le fifo %s est fermé\n", PROCESS, name);
+}
+
+void op_ipc(const int semId, struct sembuf* ops, size_t n)
+{
+	ssize_t ret;
+	ret = semop(semId, ops, n);
+	myassert(ret != -1, "'semop''");
 }
 
 // fonctions éventuelles proposées dans le .h

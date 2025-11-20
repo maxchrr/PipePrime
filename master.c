@@ -91,22 +91,19 @@ void loop(struct master data)
 	{
 		ssize_t ret;
 
-		struct sembuf entree_attmut_client =	{1, 1, 0};
-		struct sembuf entree_attmut_master =	{2, -1, 0};
+		struct sembuf wait_point_client =  {1, 1, 0};
+		struct sembuf wait_point_master =  {2, -1, 0};
 
-		ret = semop(data.semId, &entree_attmut_client, 1);
-		myassert(ret != -1, "erreur : semop : entree_attmut_client");
-
-		ret = semop(data.semId, &entree_attmut_master, 1);
-		myassert(ret != -1, "erreur : semop : entree_attmut_master");
+		op_ipc(data.semId, &wait_point_client, 1);
+		op_ipc(data.semId, &wait_point_master, 1);
 
 		int fd_client_master = open_fifo(PROCESS, "fd_client_master", O_RDONLY);
 		int fd_master_client = open_fifo(PROCESS, "fd_master_client", O_WRONLY);
 
-		int d;
-		reader(fd_client_master, &d, sizeof(int));
+		int order;
+		reader(fd_client_master, &order, sizeof(int));
 
-		if (d == ORDER_STOP)
+		if (order == ORDER_STOP)
 		{
 			// ordre d'arrêt du worker
 			const int os = -1;
@@ -121,35 +118,37 @@ void loop(struct master data)
 
 			stop = true;
 		}
-		else if (d == ORDER_COMPUTE_PRIME)
+		else if (order == ORDER_COMPUTE_PRIME)
 		{
+			// Nombre demandé (lecture du client -> écriture au worker)
 			int n;
-			bool c;
 			reader(fd_client_master, &n, sizeof(int));
-			if (n > data.highest_prime)
-			{
-				int tmp = data.highest_prime;
-				for (int i=tmp; i<=n ; i= i+1)
-				{
-					writer(data.fdOut, &i, sizeof(int));
-					reader(data.fdIn, &c, sizeof(bool));
-					if (c)
-						data.highest_prime=i;
-				}
-			}
-
 			writer(data.fdOut, &n, sizeof(int));
-			reader(data.fdIn, &c, sizeof(bool));
-			writer(fd_master_client, &c, sizeof(bool));
-		}
-		else if (d == ORDER_HOW_MANY_PRIME)
-		{
 
+			// Résultat
+			int d = -1;
+			bool res;
+			reader(data.fdIn, &res, sizeof(bool));
+			if (res) reader(data.fdIn, &d, sizeof(int));
+
+			printf("n testé : %d, résultat : %d, d: %d\n", n, res, d);
+
+			if (n == d && res)
+			{
+				writer(fd_master_client, &res, sizeof(bool));
+				if (d > data.highest_prime)
+					data.highest_prime = d;
+				data.how_many_prime += 1;
+			}
+			else
+				writer(fd_master_client, &res, sizeof(bool));
+		}
+		else if (order == ORDER_HOW_MANY_PRIME)
+		{
 			writer(fd_master_client, &data.how_many_prime, sizeof(int));
 		}
-		else if (d == ORDER_HIGHEST_PRIME)
+		else if (order == ORDER_HIGHEST_PRIME)
 		{
-
 			writer(fd_master_client, &data.highest_prime, sizeof(int));
 		}
 
