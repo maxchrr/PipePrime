@@ -5,11 +5,11 @@
 //#define VERBOSE
 
 #ifdef VERBOSE
-    #define TRACE(x) fprintf(stderr, (x));
-    #define TRACE2(x,p1) fprintf(stderr, (x), (p1));
+	#define TRACE(x) fprintf(stderr, (x));
+	#define TRACE2(x,p1) fprintf(stderr, (x), (p1));
 #else
-    #define TRACE(x)
-    #define TRACE2(x,p1)
+	#define TRACE(x)
+	#define TRACE2(x,p1)
 #endif
 
 #endif
