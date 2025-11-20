@@ -131,8 +131,6 @@ void loop(struct master data)
 			reader(data.fdIn, &res, sizeof(bool));
 			if (res) reader(data.fdIn, &d, sizeof(int));
 
-			printf("n testé : %d, résultat : %d, d: %d\n", n, res, d);
-
 			if (n == d && res)
 			{
 				writer(fd_master_client, &res, sizeof(bool));

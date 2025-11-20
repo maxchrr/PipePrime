@@ -99,16 +99,13 @@ void loop(bool res, struct worker* current_worker)
 		}
 		else
 		{
-		printf("n : %d\nfdIn : %d\nfdToMaster : %d\nres: %d\n", current_worker->number, current_worker->fdIn, current_worker->fdToMaster, res);
 
 		if (d == current_worker->number)  // si le nombre correspond au numéro du worker (donc premier)
 		{
-			printf("d (TRUE) = %d\n", d);
 			writer(current_worker->fdToMaster, &d, sizeof(int));
 		}
 		else if (d % current_worker->number == 0) // si il n'est pas premier
 		{
-			printf("d (FALSE) = %d\n", d);
 			res = false;
 			writer(current_worker->fdToMaster, &res, sizeof(bool));
 		}
@@ -130,11 +127,10 @@ void loop(bool res, struct worker* current_worker)
 				// fils
 				if (ret == 0)
 				{
-					dispose_fd(PROCESS, fds_master_worker[1], "fds_me_worker");
+					dispose_fd(PROCESS, fds_master_worker[1], "fds_master_worker");
 
 					char buffer[1000], fd_in[16], fd_out[16];
-					snprintf(buffer, sizeof(buffer), "%d", d); // TODO: comment avoir le prochain nombre premier ?
-					printf("d (next worker) : %s\n", buffer);
+					snprintf(buffer, sizeof(buffer), "%d", d);
 					snprintf(fd_in, sizeof(fd_in), "%d", fds_master_worker[0]);
 					snprintf(fd_out, sizeof(fd_out), "%d", current_worker->fdToMaster);
 
@@ -150,7 +146,7 @@ void loop(bool res, struct worker* current_worker)
 					myassert(ret == 0, "'execv' -> impossible de lancer le worker");
 				}
 
-				dispose_fd(PROCESS, fds_master_worker[0], "fds_me_worker");
+				dispose_fd(PROCESS, fds_master_worker[0], "fds_master_worker");
 
 				writer(*(current_worker->fdToWorker), &d, sizeof(int));
 			}
