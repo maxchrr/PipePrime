@@ -25,7 +25,7 @@ void create_fifo(const char* PROCESS, const char* name)
 	printf("[%s] Création du fifo %s\n", PROCESS, name);
 }
 
-void dispose_fifo(const char* PROCESS, const char* name) 
+void dispose_fifo(const char* PROCESS, const char* name)
 {
 	ssize_t ret = unlink(name);
 	myassert(ret == 0, "'unlink' -> impossible de détruire le fifo");

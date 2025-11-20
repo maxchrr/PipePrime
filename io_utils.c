@@ -10,7 +10,7 @@ void create_fd(const char* PROCESS, int* fd, const char* name)
 	printf("[%s] Création du tube %d (%s)\n", PROCESS, *fd, name);
 }
 
-void dispose_fd(const char* PROCESS, const int fd, const char* name) 
+void dispose_fd(const char* PROCESS, const int fd, const char* name)
 {
 	ssize_t ret = close(fd);
 	myassert(ret == 0, "'close' -> impossible de fermer le tube");
