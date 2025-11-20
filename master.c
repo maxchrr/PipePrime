@@ -142,17 +142,13 @@ void loop(struct master data)
 		}
 		else if (d == ORDER_HOW_MANY_PRIME)
 		{
-			int n;
-			ret = reader(data.fdIn, &n, sizeof(int));
-			data.how_many_prime = n;
-			ret = writer(fd_client_master, &data.how_many_prime, sizeof(int));
+			
+			ret = writer(fd_master_client, &data.how_many_prime, sizeof(int));
 		}
 		else if (d == ORDER_HIGHEST_PRIME)
 		{
-			int n;
-			ret = reader(data.fdIn, &n, sizeof(int));
-			data.highest_prime = n;
-			ret = reader(fd_client_master, &data.highest_prime, sizeof(int));
+			
+			ret = writer(fd_master_client, &data.highest_prime, sizeof(int));
 		}
 
 		close_fifo(fd_client_master, "fd_client_master");
