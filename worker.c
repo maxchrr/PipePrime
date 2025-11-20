@@ -81,82 +81,84 @@ void loop(struct worker* current_worker)
 	bool stop = false;
 	do
 	{
-	int c;
-	ssize_t ret;
+		int c;
+		ssize_t ret;
+		bool result;
 
-	reader(current_worker->fdIn, &c, sizeof(int));
+		result = false;
 
-	if (c == -1) // ordre d'arrêt
-	{
-
-		if (current_worker->fdToWorker != NULL)
+		ret = reader(current_worker->fdIn, &c, sizeof(int));
+		if (c == -1) // ordre d'arrêt
 		{
+
+			if (current_worker->fdToWorker != NULL)
+			{
 			writer(*(current_worker->fdToWorker), &c, sizeof(int));
 
 			ret = wait(NULL);
 			myassert(ret != -1, "erreur : wait");
 
-		}
-
-		stop = true;
-	}
-	else
-	{
-		bool res = false;
-		if (c == current_worker->number)  // si c'est le même nombre (donc premier)
-		{
-			res = true;
-			writer(current_worker->fdToMaster, &res, sizeof(bool));
-		}
-		else if (c % current_worker->number == 0) // si il n'est pas premier
-		{
-			writer(current_worker->fdToMaster, &res, sizeof(bool));
-		}
-		else  // il faut le donner au worker suivant
-		{
-			if (current_worker->fdToWorker != NULL) //il en existe 1
-			{
-				writer(*(current_worker->fdToWorker), &c, sizeof(int));
 			}
-			else // il n'en existe pas
+
+			stop = true;
+		}
+		else
+		{
+			bool res = false;
+			if (c == current_worker->number)  // si c'est le même nombre (donc premier)
 			{
-
-				int fds_master_worker[2];
-
-				create_fd(PROCESS, fds_master_worker,"fds_me_worker");
-
-				current_worker->fdToWorker = &fds_master_worker[1];  // écrivain
-
-				ret = fork();
-				myassert(ret != -1, "erreur : fork");
-
-				// fils
-				if (ret == 0)
+				res = true;
+				writer(current_worker->fdToMaster, &res, sizeof(bool));
+			}
+			else if (c % current_worker->number == 0) // si il n'est pas premier
+			{
+				writer(current_worker->fdToMaster, &res, sizeof(bool));
+			}
+			else  // il faut le donner au worker suivant
+			{
+				if (current_worker->fdToWorker != NULL) //il en existe 1
 				{
-					dispose_fd(PROCESS, fds_master_worker[1], "fds_me_worker");
-
-					char buffer[1000], fd_in[16], fd_out[16];
-					snprintf(fd_in, sizeof(fd_in), "%d", fds_master_worker[0]);
-					snprintf(fd_out, sizeof(fd_out), "%d", current_worker->fdToMaster);
-
-					char *argv[] = {
-						"./worker",
-						buffer,
-						fd_in,
-						fd_out,
-						NULL
-					};
-
-					ret = execv("./worker", argv);
-					myassert(ret == 0, "'execv' -> impossible de lancer le worker");
+					writer(*(current_worker->fdToWorker), &c, sizeof(int));
 				}
+				else // il n'en existe pas
+				{
 
-				dispose_fd(PROCESS, fds_master_worker[0],"fds_me_worker");
+					int fds_master_worker[2];
 
-				writer(*(current_worker->fdToWorker), &c, sizeof(int));
+					create_fd(PROCESS, fds_master_worker,"fds_me_worker");
+
+					current_worker->fdToWorker = &fds_master_worker[1];  // écrivain
+
+					ret = fork();
+					myassert(ret != -1, "erreur : fork");
+
+					// fils
+					if (ret == 0)
+					{
+						dispose_fd(PROCESS, fds_master_worker[1], "fds_me_worker");
+
+						char buffer[1000], fd_in[16], fd_out[16];
+						snprintf(fd_in, sizeof(fd_in), "%d", fds_master_worker[0]);
+						snprintf(fd_out, sizeof(fd_out), "%d", current_worker->fdToMaster);
+
+						char *argv[] = {
+							"./worker",
+							buffer,
+							fd_in,
+							fd_out,
+							NULL
+						};
+
+						ret = execv("./worker", argv);
+						myassert(ret == 0, "'execv' -> impossible de lancer le worker");
+					}
+
+					dispose_fd(PROCESS, fds_master_worker[0], "fds_me_worker");
+
+					writer(*(current_worker->fdToWorker), &c, sizeof(int));
+				}
 			}
 		}
-	}
 	} while (!stop);
 }
 
@@ -175,7 +177,6 @@ int main(int argc, char * argv[])
 	// que le nombre testé est bien premier
 	bool res = true;
 	writer(current_worker->fdToMaster, &res, sizeof(bool));
-
 	loop(current_worker);
 
 	// libérer les ressources : fermeture des files descriptors par exemple

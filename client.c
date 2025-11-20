@@ -138,6 +138,7 @@ void order_how_many(const int fd_master_client)
 {
 	char c;
 	reader(fd_master_client, &c, sizeof(char));
+	printf("we know %d prime number\n", c);
 }
 
 void order_highest(const int fd_master_client)
@@ -199,7 +200,7 @@ int main(int argc, char * argv[])
 	op_ipc(semId, &entree_critique_client, 1);
 	op_ipc(semId, &entree_attmut_master, 1);
 	op_ipc(semId, &entree_attmut_client, 1);
-	
+
 	// ouverture tubes
 	int fd_client_master = open_fifo(PROCESS, "fd_client_master", O_WRONLY);
 	int fd_master_client = open_fifo(PROCESS, "fd_master_client", O_RDONLY);
@@ -232,7 +233,7 @@ int main(int argc, char * argv[])
 	struct sembuf sortie_critique_client =  {0, 1, 0};
 
 	op_ipc(semId, &sortie_critique_client, 1);
-	
+
 	// libération des ressources
 	close_fifo(PROCESS, fd_client_master, "fd_client_master");
 	close_fifo(PROCESS, fd_master_client, "fd_master_client");

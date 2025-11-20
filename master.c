@@ -93,18 +93,18 @@ void loop(struct master data)
 
 		struct sembuf entree_attmut_client =	{1, 1, 0};
 		struct sembuf entree_attmut_master =	{2, -1, 0};
-		
+
 		ret = semop(data.semId, &entree_attmut_client, 1);
 		myassert(ret != -1, "erreur : semop : entree_attmut_client");
 
 		ret = semop(data.semId, &entree_attmut_master, 1);
 		myassert(ret != -1, "erreur : semop : entree_attmut_master");
-		
+
 		int fd_client_master = open_fifo(PROCESS, "fd_client_master", O_RDONLY);
 		int fd_master_client = open_fifo(PROCESS, "fd_master_client", O_WRONLY);
 
 		int d;
-		ret = reader(fd_client_master, &d, sizeof(int));
+		reader(fd_client_master, &d, sizeof(int));
 
 		if (d == ORDER_STOP)
 		{
@@ -129,7 +129,7 @@ void loop(struct master data)
 			if (n > data.highest_prime)
 			{
 				int tmp = data.highest_prime;
-				for (int i=tmp; i<n ; i++)
+				for (int i=tmp; i<=n ; i= i+1)
 				{
 					writer(data.fdOut, &i, sizeof(int));
 					reader(data.fdIn, &c, sizeof(bool));
@@ -137,19 +137,19 @@ void loop(struct master data)
 						data.highest_prime=i;
 				}
 			}
-			
+
 			writer(data.fdOut, &n, sizeof(int));
 			reader(data.fdIn, &c, sizeof(bool));
 			writer(fd_master_client, &c, sizeof(bool));
 		}
 		else if (d == ORDER_HOW_MANY_PRIME)
 		{
-			
+
 			writer(fd_master_client, &data.how_many_prime, sizeof(int));
 		}
 		else if (d == ORDER_HIGHEST_PRIME)
 		{
-			
+
 			writer(fd_master_client, &data.highest_prime, sizeof(int));
 		}
 
@@ -165,6 +165,7 @@ void loop(struct master data)
 void launch_first_worker(int fds_master_worker[], int fds_worker_master[])
 {
 	ssize_t ret;
+	bool c;
 
 	// fermer les canaux inutiles du worker (fils)
 	dispose_fd(PROCESS, fds_master_worker[1], "worker");
@@ -181,9 +182,11 @@ void launch_first_worker(int fds_master_worker[], int fds_worker_master[])
 		fd_out,
 		NULL
 	};
-	
+
 	ret = execv("./worker", argv);
 	myassert(ret == 0, "'execv' -> impossible de lancer le worker");
+
+	ret = reader(fds_master_worker[1], &c, sizeof(bool));
 }
 
 int create_ipc(const char* path_name, const int id, const int size, const int flags)
