@@ -120,16 +120,19 @@ void loop(struct worker* current_worker)
 				}
 				else // il n'en existe pas 
 				{
-					ssize_t retf = fork();
+					
+					int fds_me_worker[2];
+					
+					create_fd(fds_me_worker,"fds_me_worker");
+					
+					current_worker->fdToWorker = &fds_me_worker[1];  // écrivain
+
+					ret = fork();
 					myassert(ret != -1, "erreur : fork");
 				
-					int fds[2];
-					ret = pipe(fds); 
-					myassert(ret != -1, "erreur : pipe - cannot create the pipe");
-				
-					if (retf == 0)
+					if (ret == 0)
 					{
-						ret = close(fds[1]);
+						ret = close(fds_me_worker[1]);
 						myassert(ret == 0, "erreur : close - cannot close the pipe");
 					
 						char buffer[1000];
@@ -137,7 +140,7 @@ void loop(struct worker* current_worker)
 						argv[0] = "./worker";
 						sprintf(buffer, "%d", c);   // int to char*
 						argv[1] = buffer;
-						sprintf(buffer, "%d", fds[0]);
+						sprintf(buffer, "%d", fds_me_worker[0]);
 						argv[2] = buffer;
 						sprintf(buffer, "%d", current_worker->fdToMaster);
 						argv[3] = buffer;
@@ -146,10 +149,8 @@ void loop(struct worker* current_worker)
 						ret = execv("./worker",argv);
 					}
 				
-					ret = close(fds[0]);
+					ret = close(fds_me_worker[0]);
 					myassert(ret == 0, "erreur : close - cannot close the pipe");
-				
-					current_worker->fdToWorker = &fds[1];
 				
 					ret = writer(*(current_worker->fdToWorker), &c, sizeof(int));
 				}

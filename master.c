@@ -108,51 +108,51 @@ void loop(struct master data)
 
 		if (d == ORDER_STOP)
 		{
-		printf("toto\n");
-		const int os = -1;
-		ret = writer(data.fdOut, &os, sizeof(int));
-		printf("tata\n");
-		const char* msg = "EOC\n";
-		ret = writer(fd_master_client, msg, strlen(msg));
+			printf("toto\n");
+			const int os = -1;
+			ret = writer(data.fdOut, &os, sizeof(int));
+			printf("tata\n");
+			const char* msg = "EOC\n";
+			ret = writer(fd_master_client, msg, strlen(msg));
 
-		stop = true;
+			stop = true;
 		}
 		else if (d == ORDER_COMPUTE_PRIME)
 		{
-		int n;
-		bool c;
-		ret = reader(fd_client_master, &n, sizeof(int));
-		if (n > data.highest_prime){
-			for (int i =data.highest_prime; i < n ; i++){
-				ret = writer(data.fdOut, &i,sizeof(int));
-			
-				ret = reader(data.fdIn, &c, sizeof(bool));
+			int n;
+			bool c;
+			ret = reader(fd_client_master, &n, sizeof(int));
+			if (n > data.highest_prime){
+				for (int i =data.highest_prime; i < n ; i++){
+					ret = writer(data.fdOut, &i,sizeof(int));
 				
-				if (c) {
-					data.highest_prime=i;
+					ret = reader(data.fdIn, &c, sizeof(bool));
+					
+					if (c) {
+						data.highest_prime=i;
+					}
 				}
 			}
-		}
-		
-		ret = writer(data.fdOut, &n,sizeof(int));
-		
-		ret = reader(data.fdIn, &c, sizeof(bool));
-		
-		ret = writer(fd_master_client, &c, sizeof(bool));
+			
+			ret = writer(data.fdOut, &n,sizeof(int));
+			
+			ret = reader(data.fdIn, &c, sizeof(bool));
+			
+			ret = writer(fd_master_client, &c, sizeof(bool));
 		}
 		else if (d == ORDER_HOW_MANY_PRIME)
 		{
-		int n;
-		ret = reader(data.fdIn, &n, sizeof(int));
-		data.how_many_prime = n;
-		ret = writer(fd_client_master, &data.how_many_prime, sizeof(int));
+			int n;
+			ret = reader(data.fdIn, &n, sizeof(int));
+			data.how_many_prime = n;
+			ret = writer(fd_client_master, &data.how_many_prime, sizeof(int));
 		}
 		else if (d == ORDER_HIGHEST_PRIME)
 		{
-		int n;
-		ret = reader(data.fdIn, &n, sizeof(int));
-		data.highest_prime = n;
-		ret = reader(fd_client_master, &data.highest_prime, sizeof(int));
+			int n;
+			ret = reader(data.fdIn, &n, sizeof(int));
+			data.highest_prime = n;
+			ret = reader(fd_client_master, &data.highest_prime, sizeof(int));
 		}
 
 		close_fifo(fd_client_master, "fd_client_master");
