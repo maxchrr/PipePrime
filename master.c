@@ -121,25 +121,24 @@ void loop(struct master data)
 		}
 		else if (d == ORDER_COMPUTE_PRIME)
 		{
-			int n;
-			bool c;
-			ret = reader(fd_client_master, &n, sizeof(int));
-			
-			if (n > data.highest_prime)
+		int n;
+		bool c;
+		ret = reader(fd_client_master, &n, sizeof(int));
+		if (n > data.highest_prime)
+		{
+			int tmp = data.highest_prime;
+			for (int i=tmp; i<n ; i++)
 			{
-				for (int i =data.highest_prime; i < n ; i++)
-				{
-					ret = writer(data.fdOut, &i,sizeof(int));
-					ret = reader(data.fdIn, &c, sizeof(bool));
-					
-					if (c)
-						data.highest_prime=i;
-				}
+				ret = writer(data.fdOut, &i,sizeof(int));
+				ret = reader(data.fdIn, &c, sizeof(bool));
+				if (c)
+					data.highest_prime=i;
 			}
+		}
 		
-			ret = writer(data.fdOut, &n, sizeof(int));
-			ret = reader(data.fdIn, &c, sizeof(bool));
-			ret = writer(fd_master_client, &c, sizeof(bool));
+		ret = writer(data.fdOut, &n, sizeof(int));
+		ret = reader(data.fdIn, &c, sizeof(bool));
+		ret = writer(fd_master_client, &c, sizeof(bool));
 		}
 		else if (d == ORDER_HOW_MANY_PRIME)
 		{
