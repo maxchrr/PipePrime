@@ -12,6 +12,7 @@
 
 #include <sys/ipc.h>
 #include <sys/sem.h>
+#include <sys/wait.h>
 
 #include "myassert.h"
 
@@ -55,6 +56,7 @@ static void usage(const char *exeName, const char *message)
 /************************************************************************
  * boucle principale de communication avec le client
  ************************************************************************/
+
 void loop(struct master data)
 {
 	// boucle infinie :
@@ -98,8 +100,8 @@ void loop(struct master data)
 		ret = semop(data.semId, &entree_attmut_master, 1);
 		myassert(ret != -1, "erreur : semop : entree_attmut_master");
 		
-		int fd_client_master = open_fifo("fd_client_master", O_RDONLY);
-		int fd_master_client = open_fifo("fd_master_client", O_WRONLY);
+		int fd_client_master = open_fifo(PROCESS, "fd_client_master", O_RDONLY);
+		int fd_master_client = open_fifo(PROCESS, "fd_master_client", O_WRONLY);
 
 		int d;
 		ret = reader(fd_client_master, &d, sizeof(int));
@@ -108,14 +110,14 @@ void loop(struct master data)
 		{
 			// ordre d'arrêt du worker
 			const int os = -1;
-			ret = writer(data.fdOut, &os, sizeof(int));
+			writer(data.fdOut, &os, sizeof(int));
 
 			ret = wait(NULL);
 			myassert(ret != -1, "'wait'");
 
 			// accusé de réception pour le client
 			const char* msg = "EOC\n";
-			ret = writer(fd_master_client, msg, strlen(msg));
+			writer(fd_master_client, msg, strlen(msg));
 
 			stop = true;
 		}
@@ -123,42 +125,43 @@ void loop(struct master data)
 		{
 			int n;
 			bool c;
-			ret = reader(fd_client_master, &n, sizeof(int));
+			reader(fd_client_master, &n, sizeof(int));
 			if (n > data.highest_prime)
 			{
 				int tmp = data.highest_prime;
 				for (int i=tmp; i<n ; i++)
 				{
-					ret = writer(data.fdOut, &i,sizeof(int));
-					ret = reader(data.fdIn, &c, sizeof(bool));
+					writer(data.fdOut, &i, sizeof(int));
+					reader(data.fdIn, &c, sizeof(bool));
 					if (c)
 						data.highest_prime=i;
 				}
 			}
 			
-			ret = writer(data.fdOut, &n, sizeof(int));
-			ret = reader(data.fdIn, &c, sizeof(bool));
-			ret = writer(fd_master_client, &c, sizeof(bool));
+			writer(data.fdOut, &n, sizeof(int));
+			reader(data.fdIn, &c, sizeof(bool));
+			writer(fd_master_client, &c, sizeof(bool));
 		}
 		else if (d == ORDER_HOW_MANY_PRIME)
 		{
 			
-			ret = writer(fd_master_client, &data.how_many_prime, sizeof(int));
+			writer(fd_master_client, &data.how_many_prime, sizeof(int));
 		}
 		else if (d == ORDER_HIGHEST_PRIME)
 		{
 			
-			ret = writer(fd_master_client, &data.highest_prime, sizeof(int));
+			writer(fd_master_client, &data.highest_prime, sizeof(int));
 		}
 
-		close_fifo(fd_client_master, "fd_client_master");
-		close_fifo(fd_master_client, "fd_master_client");
+		close_fifo(PROCESS, fd_client_master, "fd_client_master");
+		close_fifo(PROCESS, fd_master_client, "fd_master_client");
 	} while (!stop);
 }
 
 /************************************************************************
  * Fonctions annexes
  ************************************************************************/
+
 void launch_first_worker(int fds_master_worker[], int fds_worker_master[])
 {
 	ssize_t ret;
@@ -168,16 +171,16 @@ void launch_first_worker(int fds_master_worker[], int fds_worker_master[])
 	dispose_fd(PROCESS, fds_worker_master[0], "worker");
 
 	char fd_in[16], fd_out[16];
-    	snprintf(fd_in, sizeof(fd_in), "%d", fds_master_worker[0]);
-    	snprintf(fd_out, sizeof(fd_out), "%d", fds_worker_master[1]);
+	snprintf(fd_in, sizeof(fd_in), "%d", fds_master_worker[0]);
+	snprintf(fd_out, sizeof(fd_out), "%d", fds_worker_master[1]);
 
 	char *argv[] = {
-        	"./worker",
-        	"2",
-        	fd_in,
-        	fd_out,
-        	NULL
-    	};
+		"./worker",
+		"2",
+		fd_in,
+		fd_out,
+		NULL
+	};
 	
 	ret = execv("./worker", argv);
 	myassert(ret == 0, "'execv' -> impossible de lancer le worker");
@@ -253,8 +256,8 @@ int main(int argc, char * argv[])
 	init_ipc(data.semId, values);
 
 	// fifo
-	create_fifo("fd_client_master");	// tube 0 (client -> master)
-	create_fifo("fd_master_client");	// tube 1 (master -> client)
+	create_fifo(PROCESS, "fd_client_master");  // tube 0 (client -> master)
+	create_fifo(PROCESS, "fd_master_client");  // tube 1 (master -> client)
 
 	// déclaration du tube
 	// il y aura un file descriptor par extrémité du tube :
@@ -282,8 +285,8 @@ int main(int argc, char * argv[])
 	// destruction des tubes nommés, des sémaphores, ...
 	dispose_fd(PROCESS, fds_master_worker[1], "master");
 	dispose_fd(PROCESS, fds_worker_master[0], "master");
-	dispose_fifo("fd_client_master");
-	dispose_fifo("fd_master_client");
+	dispose_fifo(PROCESS, "fd_client_master");
+	dispose_fifo(PROCESS, "fd_master_client");
 	dispose_ipc(data.semId);
 
 	return EXIT_SUCCESS;

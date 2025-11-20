@@ -18,33 +18,33 @@
 #include "master_client.h"
 
 // fonctions éventuelles internes au fichier
-void create_fifo(const char* name)
+void create_fifo(const char* PROCESS, const char* name)
 {
 	ssize_t ret = mkfifo(name, 0644);
-	myassert(ret == 0, "erreur : mkfifo - cannot create the fifo");
-	printf("[MASTER] Created fifo %s\n", name);
+	myassert(ret == 0, "'mkfifo' -> impossible de créer le fifo");
+	printf("[%s] Création du fifo %s\n", PROCESS, name);
 }
 
-void dispose_fifo(const char* name) 
+void dispose_fifo(const char* PROCESS, const char* name) 
 {
 	ssize_t ret = unlink(name);
-	myassert(ret == 0, "erreur : unlink - cannot remove fifo");
-	printf("[MASTER] Dispose fifo %s\n", name);
+	myassert(ret == 0, "'unlink' -> impossible de détruire le fifo");
+	printf("[%s] Destruction du fifo %s\n", PROCESS, name);
 }
 
-int open_fifo(const char* name, int mode)
+int open_fifo(const char* PROCESS, const char* name, int mode)
 {
 	int fd = open(name, mode);
-	myassert(fd != -1, "erreur : open - cannot open the fifo");
-	printf("[MASTER-CLIENT] The fifo %s is open\n", name);
+	myassert(fd != -1, "'open' - impossible d'ouvrir le fifo");
+	printf("[%s] Le fifo %s est ouvert\n", PROCESS, name);
 	return fd;
 }
 
-void close_fifo(int fd, const char* name)
+void close_fifo(const char* PROCESS, int fd, const char* name)
 {
 	ssize_t ret = close(fd);
-	myassert(ret == 0, "erreur : close - cannot close fifo");
-	printf("[MASTER-CLIENT] The fifo %s is close\n", name);
+	myassert(ret == 0, "'close' -> impossible de fermer le fifo");
+	printf("[%s] Le fifo %s est fermé\n", PROCESS, name);
 }
 
 // fonctions éventuelles proposées dans le .h

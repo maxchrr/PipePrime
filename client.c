@@ -19,6 +19,8 @@
 
 #include "io_utils.h"
 
+#define PROCESS "CLIENT"
+
 // chaines possibles pour le premier paramètre de la ligne de commande
 #define TK_STOP		"stop"
 #define TK_COMPUTE	"compute"
@@ -84,6 +86,66 @@ static int parseArgs(int argc, char * argv[], int *number)
 	return order;
 }
 
+/************************************************************************
+ * Fonctions annexes sémaphores
+ ************************************************************************/
+
+int get_ipc(const char* path_name, const int id, const int size, const int flags)
+{
+	key_t key;
+	int semId;
+
+	key = ftok(path_name, id);
+	myassert(key != -1, "'ftok' -> le descripteur n'existe pas");
+
+	semId = semget(key, size, flags);
+	myassert(semId != -1, "'semget' -> impossible de récupérer le sémaphore");
+
+	return semId;
+}
+
+void op_ipc(const int semId, struct sembuf* ops, size_t n)
+{
+	ssize_t ret;
+	ret = semop(semId, ops, n);
+	myassert(ret != -1, "'semop''");
+}
+
+/************************************************************************
+ * Fonctions annexes ordres
+ ************************************************************************/
+void order_stop(const int fd_master_client)
+{
+	ssize_t ret;
+	do
+	{
+		char c;
+		ret = reader(fd_master_client, &c, sizeof(char));
+		putchar(c);
+	} while (ret != 0);
+}
+
+void order_compute(const int fd_master_client)
+{
+	bool c;
+	reader(fd_master_client, &c, sizeof(bool));
+
+	if (c) printf("premier\n");
+	else printf("non premier\n");
+}
+
+void order_how_many(const int fd_master_client)
+{
+	char c;
+	reader(fd_master_client, &c, sizeof(char));
+}
+
+void order_highest(const int fd_master_client)
+{
+	int c;
+	reader(fd_master_client, &c, sizeof(int));
+	printf("the highest prime known : %d\n", c);
+}
 
 /************************************************************************
  * Fonction principale
@@ -123,92 +185,57 @@ int main(int argc, char * argv[])
 	// N'hésitez pas à faire des fonctions annexes ; si la fonction main
 	// ne dépassait pas une trentaine de lignes, ce serait bien.
 
-	if (order == ORDER_COMPUTE_PRIME_LOCAL)
+	if (order == ORDER_COMPUTE_PRIME_LOCAL) return EXIT_SUCCESS;
+
+	int semId;
+
+	semId = get_ipc(IPC_PATH_NAME, IPC_ID, IPC_SIZE, 0);
+
+	// entrée SC
+	struct sembuf entree_critique_client =  {0, -1, 0};
+	struct sembuf entree_attmut_client =    {1, -1, 0};
+	struct sembuf entree_attmut_master =    {2, 1, 0};
+
+	op_ipc(semId, &entree_critique_client, 1);
+	op_ipc(semId, &entree_attmut_master, 1);
+	op_ipc(semId, &entree_attmut_client, 1);
+	
+	// ouverture tubes
+	int fd_client_master = open_fifo(PROCESS, "fd_client_master", O_WRONLY);
+	int fd_master_client = open_fifo(PROCESS, "fd_master_client", O_RDONLY);
+
+	switch (order)
 	{
-
+	case ORDER_STOP:
+		writer(fd_client_master, &order, sizeof(int));
+		order_stop(fd_master_client);
+		break;
+	case ORDER_COMPUTE_PRIME:
+		writer(fd_client_master, &order, sizeof(int));
+		writer(fd_client_master, &number, sizeof(int));
+		order_compute(fd_master_client);
+		break;
+	case ORDER_HOW_MANY_PRIME:
+		writer(fd_client_master, &order, sizeof(int));
+		order_how_many(fd_master_client);
+		break;
+	case ORDER_HIGHEST_PRIME:
+		writer(fd_client_master, &order, sizeof(int));
+		order_highest(fd_master_client);
+		break;
+	default:
+		fprintf(stderr, "erreur");
+		break;
 	}
-	else
-	{
-		key_t key;
-		int semId;
-		int ret;
 
-		key = ftok(IPC_PATH_NAME, IPC_ID);
-		myassert(key != -1, "erreur : ftok - le fichier n'existe pas ou n'est pas accessible");
+	// sortie SC
+	struct sembuf sortie_critique_client =  {0, 1, 0};
 
-		semId = semget(key, IPC_SIZE, 0);
-		myassert(semId != -1, "erreur : semget");
-
-		// entrée SC
-		struct sembuf entree_critique_client =  {0, -1, 0};
-		struct sembuf entree_attmut_client =    {1, -1, 0};
-		struct sembuf entree_attmut_master =    {2, 1, 0};
-
-		ret = semop(semId, &entree_critique_client, 1);
-		myassert(ret != -1, "erreur : semop : entree_critique_client");
-
-		ret = semop(semId, &entree_attmut_master, 1);
-		myassert(ret != -1, "erreur : semop : entree_attmut_master");
-
-		ret = semop(semId, &entree_attmut_client, 1);
-		myassert(ret != -1, "erreur : semop : entree_attmut_client");
-
-		// ouverture tubes
-		int fd_client_master = open_fifo("fd_client_master", O_WRONLY);
-		int fd_master_client = open_fifo("fd_master_client", O_RDONLY);
-
-		if (order == ORDER_STOP)
-		{
-			ret = writer(fd_client_master, &order, sizeof(int));
-
-			do
-			{
-				char c;
-				ret = reader(fd_master_client, &c, sizeof(char));
-				putchar(c);
-			} while (ret != 0);
-		}
-		else if (order == ORDER_COMPUTE_PRIME)
-		{
-			ret = writer(fd_client_master, &order, sizeof(int));
-			ret = writer(fd_client_master, &number, sizeof(int));
-
-			bool c;
-			ret = reader(fd_master_client, &c, sizeof(bool));
-
-			if (c) {
-				printf("premier\n");
-			} else {
-				printf("non premier\n");
-			}
-		}
-		else if (order == ORDER_HOW_MANY_PRIME)
-		{
-			ret = writer(fd_client_master, &order, sizeof(int));
-
-			char c;
-			ret = reader(fd_master_client, &c, sizeof(char));
-		}
-		else if (order == ORDER_HIGHEST_PRIME)
-		{
-			ret = writer(fd_client_master, &order, sizeof(int));
-
-			int c;
-			ret = reader(fd_master_client, &c, sizeof(int));
-			printf("the highest prime known : %d\n", c);
-			
-		}
-
-		// sortie SC
-		struct sembuf sortie_critique_client =  {0, 1, 0};
-
-		ret = semop(semId, &sortie_critique_client, 1);
-		myassert(ret != -1, "erreur : semop : sortie_critique_client");
-
-		// libération des ressources
-		close_fifo(fd_client_master, "fd_client_master");
-		close_fifo(fd_master_client, "fd_master_client");
-	}
+	op_ipc(semId, &sortie_critique_client, 1);
+	
+	// libération des ressources
+	close_fifo(PROCESS, fd_client_master, "fd_client_master");
+	close_fifo(PROCESS, fd_master_client, "fd_master_client");
 
 	return EXIT_SUCCESS;
 }
