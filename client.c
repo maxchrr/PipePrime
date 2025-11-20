@@ -186,8 +186,9 @@ int main(int argc, char * argv[])
 		{
 			ret = writer(fd_client_master, &order, sizeof(int));
 
-			char c;
-			ret = reader(fd_master_client, &c, sizeof(char));
+			int c;
+			ret = reader(fd_master_client, &c, sizeof(int));
+			printf("we know %d prime number\n", c);
 		}
 		else if (order == ORDER_HIGHEST_PRIME)
 		{

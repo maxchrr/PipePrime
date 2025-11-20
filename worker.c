@@ -85,13 +85,16 @@ void loop(struct worker* current_worker)
 	{
 		int c;
 		ssize_t ret;
+		bool result;
+		
+		result = false;
 		
 		ret = reader(current_worker->fdIn, &c, sizeof(int));
-		printf("%d\n",c);
+		//printf("%d\n",c);
 		if (c == -1) //ordre d'arêt
 		{
 		
-		if (current_worker->fdToWorker != NULL)
+			if (current_worker->fdToWorker != NULL)
 			{ 
 			ret = writer(*(current_worker->fdToWorker), &c, sizeof(int));
 			
@@ -100,19 +103,19 @@ void loop(struct worker* current_worker)
 			
 			}
 		
-		stop = true;
+			stop = true;
 		}
 		else
 		{
-			bool res = false;
+			
 			if (c == current_worker->number)  // si c'est le même nombre (donc premier)
 			{
-				res = true;
-				ret = writer(current_worker->fdToMaster, &res, sizeof(bool));
+				result = true;
+				ret = writer(current_worker->fdToMaster, &result, sizeof(bool));
 			}
 			else if (c % current_worker->number == 0) // si il n'est pas premier
 			{
-				ret = writer(current_worker->fdToMaster, &res, sizeof(bool));
+				ret = writer(current_worker->fdToMaster, &result, sizeof(bool));
 			}
 			else  // il faut le donner au worker suivant
 			{
@@ -123,18 +126,18 @@ void loop(struct worker* current_worker)
 				else // il n'en existe pas 
 				{
 					
-					int fds_master_worker[2];
+					int fds_me_worker[2];
 					
-					create_fd(PROCESS, fds_master_worker,"fds_me_worker");
+					create_fd(PROCESS, fds_me_worker,"fds_me_worker");
 					
-					current_worker->fdToWorker = &fds_master_worker[1];  // écrivain
+					current_worker->fdToWorker = &fds_me_worker[1];  // écrivain
 
 					ret = fork();
 					myassert(ret != -1, "erreur : fork");
 				
 					if (ret == 0)
 					{
-						dispose_fd(PROCESS, fds_master_worker[1],"fds_me_worker");
+						dispose_fd(PROCESS, fds_me_worker[1],"fds_me_worker");
 					
 						char buffer1[1000];
 						char buffer2[1000];
@@ -146,7 +149,7 @@ void loop(struct worker* current_worker)
 						sprintf(buffer1, "%d", c);   // int to char*
 						argv[1] = buffer1;
 						
-						sprintf(buffer2, "%d", fds_master_worker[0]);
+						sprintf(buffer2, "%d", fds_me_worker[0]);
 						argv[2] = buffer2;
 						
 						sprintf(buffer3, "%d", current_worker->fdToMaster);
@@ -157,7 +160,7 @@ void loop(struct worker* current_worker)
 						ret = execv("./worker",argv);
 					}
 				
-					dispose_fd(PROCESS, fds_master_worker[0],"fds_me_worker");
+					dispose_fd(PROCESS, fds_me_worker[0],"fds_me_worker");
 				
 					ret = writer(*(current_worker->fdToWorker), &c, sizeof(int));
 				}
@@ -180,8 +183,10 @@ int main(int argc, char * argv[])
 	// Envoyer au master un message positif pour dire
 	// que le nombre testé est bien premier
 	ssize_t ret;
+	
 	bool res = true;
 	ret = writer(current_worker->fdToMaster, &res, sizeof(bool));
+	
 	myassert(ret != -1, "erreur : writer");
 	loop(current_worker);
 		

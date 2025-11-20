@@ -12,6 +12,7 @@
 
 #include <sys/ipc.h>
 #include <sys/sem.h>
+#include <sys/wait.h>
 
 #include "myassert.h"
 
@@ -127,17 +128,24 @@ void loop(struct master data)
 			if (n > data.highest_prime)
 			{
 				int tmp = data.highest_prime;
-				for (int i=tmp; i<n ; i++)
+				for (int i=tmp; i<=n ; i= i+1)
 				{
+					printf("%d\n",i);
 					ret = writer(data.fdOut, &i,sizeof(int));
 					ret = reader(data.fdIn, &c, sizeof(bool));
-					if (c)
-						data.highest_prime=i;
+					if (c) 
+					{
+						data.highest_prime = i ;
+						data.how_many_prime =  data.how_many_prime + 1;
+					}
 				}
 			}
+			printf("%d\n",n);
 			
 			ret = writer(data.fdOut, &n, sizeof(int));
+			
 			ret = reader(data.fdIn, &c, sizeof(bool));
+			
 			ret = writer(fd_master_client, &c, sizeof(bool));
 		}
 		else if (d == ORDER_HOW_MANY_PRIME)
@@ -162,7 +170,8 @@ void loop(struct master data)
 void launch_first_worker(int fds_master_worker[], int fds_worker_master[])
 {
 	ssize_t ret;
-
+	bool c; 
+	
 	// fermer les canaux inutiles du worker (fils)
 	dispose_fd(PROCESS, fds_master_worker[1], "worker");
 	dispose_fd(PROCESS, fds_worker_master[0], "worker");
@@ -181,6 +190,8 @@ void launch_first_worker(int fds_master_worker[], int fds_worker_master[])
 	
 	ret = execv("./worker", argv);
 	myassert(ret == 0, "'execv' -> impossible de lancer le worker");
+	
+	ret = reader(fds_master_worker[1], &c, sizeof(bool));
 }
 
 int create_ipc(const char* path_name, const int id, const int size, const int flags)
