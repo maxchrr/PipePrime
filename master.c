@@ -20,6 +20,8 @@
 
 #include "io_utils.h"
 
+#define PROCESS "MASTER"
+
 /************************************************************************
  * Données persistantes d'un master
  ************************************************************************/
@@ -87,81 +89,142 @@ void loop(struct master data)
 	{
 		ssize_t ret;
 
-		struct sembuf entree_attmut_client =    {1, 1, 0};
-		struct sembuf entree_attmut_master =    {2, -1, 0};
+		struct sembuf entree_attmut_client =	{1, 1, 0};
+		struct sembuf entree_attmut_master =	{2, -1, 0};
 		
-		printf("ici\n");
 		ret = semop(data.semId, &entree_attmut_client, 1);
 		myassert(ret != -1, "erreur : semop : entree_attmut_client");
 
 		ret = semop(data.semId, &entree_attmut_master, 1);
 		myassert(ret != -1, "erreur : semop : entree_attmut_master");
 		
-		printf ("la\n");
 		int fd_client_master = open_fifo("fd_client_master", O_RDONLY);
 		int fd_master_client = open_fifo("fd_master_client", O_WRONLY);
 
 		int d;
 		ret = reader(fd_client_master, &d, sizeof(int));
 
-		printf("ORDER: %d\n", d);
-
 		if (d == ORDER_STOP)
 		{
-		printf("toto\n");
-		const int os = -1;
-		ret = writer(data.fdOut, &os, sizeof(int));
-		printf("tata\n");
-		const char* msg = "EOC\n";
-		ret = writer(fd_master_client, msg, strlen(msg));
+			// ordre d'arrêt du worker
+			const int os = -1;
+			ret = writer(data.fdOut, &os, sizeof(int));
 
-		stop = true;
+			ret = wait(NULL);
+			myassert(ret != -1, "'wait'");
+
+			// accusé de réception pour le client
+			const char* msg = "EOC\n";
+			ret = writer(fd_master_client, msg, strlen(msg));
+
+			stop = true;
 		}
 		else if (d == ORDER_COMPUTE_PRIME)
 		{
-		int n;
-		bool c;
-		ret = reader(fd_client_master, &n, sizeof(int));
-		if (n > data.highest_prime){
-			for (int i =data.highest_prime; i < n ; i++){
-				ret = writer(data.fdOut, &i,sizeof(int));
+			int n;
+			bool c;
+			ret = reader(fd_client_master, &n, sizeof(int));
 			
-				ret = reader(data.fdIn, &c, sizeof(bool));
-				
-				if (c) {
-					data.highest_prime=i;
+			if (n > data.highest_prime)
+			{
+				for (int i =data.highest_prime; i < n ; i++)
+				{
+					ret = writer(data.fdOut, &i,sizeof(int));
+					ret = reader(data.fdIn, &c, sizeof(bool));
+					
+					if (c)
+						data.highest_prime=i;
 				}
 			}
-		}
 		
-		ret = writer(data.fdOut, &n,sizeof(int));
-		
-		ret = reader(data.fdIn, &c, sizeof(bool));
-		
-		ret = writer(fd_master_client, &c, sizeof(bool));
+			ret = writer(data.fdOut, &n, sizeof(int));
+			ret = reader(data.fdIn, &c, sizeof(bool));
+			ret = writer(fd_master_client, &c, sizeof(bool));
 		}
 		else if (d == ORDER_HOW_MANY_PRIME)
 		{
-		int n;
-		ret = reader(data.fdIn, &n, sizeof(int));
-		data.how_many_prime = n;
-		ret = writer(fd_client_master, &data.how_many_prime, sizeof(int));
+			int n;
+			ret = reader(data.fdIn, &n, sizeof(int));
+			data.how_many_prime = n;
+			ret = writer(fd_client_master, &data.how_many_prime, sizeof(int));
 		}
 		else if (d == ORDER_HIGHEST_PRIME)
 		{
-		int n;
-		ret = reader(data.fdIn, &n, sizeof(int));
-		data.highest_prime = n;
-		ret = reader(fd_client_master, &data.highest_prime, sizeof(int));
+			int n;
+			ret = reader(data.fdIn, &n, sizeof(int));
+			data.highest_prime = n;
+			ret = reader(fd_client_master, &data.highest_prime, sizeof(int));
 		}
 
 		close_fifo(fd_client_master, "fd_client_master");
 		close_fifo(fd_master_client, "fd_master_client");
-
-		// TODO: tubes anonymes worker
 	} while (!stop);
 }
 
+/************************************************************************
+ * Fonctions annexes
+ ************************************************************************/
+void launch_first_worker(int fds_master_worker[], int fds_worker_master[])
+{
+	ssize_t ret;
+
+	// fermer les canaux inutiles du worker (fils)
+	dispose_fd(PROCESS, fds_master_worker[1], "worker");
+	dispose_fd(PROCESS, fds_worker_master[0], "worker");
+
+	char fd_in[16], fd_out[16];
+    	snprintf(fd_in, sizeof(fd_in), "%d", fds_master_worker[0]);
+    	snprintf(fd_out, sizeof(fd_out), "%d", fds_worker_master[1]);
+
+	char *argv[] = {
+        	"./worker",
+        	"2",
+        	fd_in,
+        	fd_out,
+        	NULL
+    	};
+	
+	ret = execv("./worker", argv);
+	myassert(ret == 0, "'execv' -> impossible de lancer le worker");
+}
+
+int create_ipc(const char* path_name, const int id, const int size, const int flags)
+{
+	key_t key;
+	int semId;
+	ssize_t ret;
+
+	key = ftok(path_name, id);
+	myassert(key != -1, "'ftok' -> le descripteur n'existe pas");
+
+	semId = semget(key, size, flags);
+	myassert(semId != -1, "'semget' -> impossible de créer le sémaphore");
+
+	return semId;
+}
+
+void init_ipc(const int semId, unsigned short values[])
+{
+	ssize_t ret;
+	union semun {
+		int			val;	/* value for SETVAL */
+		struct semid_ds		*buf;	/* buffer for IPC_STAT & IPC_SET */
+		unsigned short		*array;	/* array for GETALL & SETALL */
+		struct seminfo		*__buf;	/* buffer for IPC_INFO (Linux-specific */
+	} arg;
+
+	arg.array = values;
+
+	ret = semctl(semId, 0, SETALL, arg);
+	myassert(ret != -1, "'semctl' -> impossible d'initialiser le sémaphore");
+}
+
+void dispose_ipc(const int semId)
+{
+	ssize_t ret;
+	ret = semctl(semId, -1, IPC_RMID);
+	myassert(semId != -1, "'semctl' -> impossible de détruire le sémaphore");
+}
 
 /************************************************************************
  * Fonction principale
@@ -169,7 +232,15 @@ void loop(struct master data)
 
 int main(int argc, char * argv[])
 {
-	struct master data = { .fdIn = -1, .fdOut = -1, .semId = -1, .highest_prime = 2, .how_many_prime = 1 };
+	int semId;
+	ssize_t ret;
+	struct master data = {
+		.fdIn = -1,
+		.fdOut = -1,
+		.semId = -1,
+		.highest_prime = 2,
+		.how_many_prime = 1
+	};
 
 	if (argc != 1)
 		usage(argv[0], NULL);
@@ -177,36 +248,20 @@ int main(int argc, char * argv[])
 	// - création des sémaphores
 	// - création des tubes nommés
 	// - création du premier worker
-	key_t key;
-	int semId;
-	ssize_t ret;
 
-	key = ftok(IPC_PATH_NAME, IPC_ID);
-	myassert(key != -1, "erreur : ftok - file doesn't exist");
-
-	semId = semget(key, IPC_SIZE, IPC_CREAT | IPC_EXCL | 0641);
-	myassert(semId != -1, "erreur : semget - unable to create the semaphore");
-	data.semId = semId;
+	// sémaphores
+	data.semId = create_ipc(IPC_PATH_NAME, IPC_ID, IPC_SIZE, IPC_CREAT | IPC_EXCL | 0641);
 
 	unsigned short values[IPC_SIZE];
-	values[0] = 1 ; // sémaphore 0 (SC des clients) à 1
-	values[1] = 0; // sémaphore 1 (attente mutuelle client) à 0
-	values[2] = 0; // sémaphore 2 (attente mutuelle master) à 0
+	values[0] = 1;	// sémaphore 0 (SC des clients) à 1
+	values[1] = 0;	// sémaphore 1 (attente mutuelle client) à 0
+	values[2] = 0;	// sémaphore 2 (attente mutuelle master) à 0
 
-	union semun {
-		int                 val;    /* value for SETVAL */
-		struct semid_ds     *buf;   /* buffer for IPC_STAT & IPC_SET */
-		unsigned short      *array; /* array for GETALL & SETALL */
-		struct seminfo      *__buf; /* buffer for IPC_INFO (Linux-specific */
-	} arg;
+	init_ipc(data.semId, values);
 
-	arg.array = values;
-
-	ret = semctl(semId, 0, SETALL, arg);
-	myassert(ret != -1, "erreur : semctl - unable to initialize the semaphore");
-
-	create_fifo("fd_client_master"); // tube 0 (client -> master)
-	create_fifo("fd_master_client"); // tube 1 (master -> client)
+	// fifo
+	create_fifo("fd_client_master");	// tube 0 (client -> master)
+	create_fifo("fd_master_client");	// tube 1 (master -> client)
 
 	// déclaration du tube
 	// il y aura un file descriptor par extrémité du tube :
@@ -214,56 +269,29 @@ int main(int argc, char * argv[])
 	//    1 : extrémité en écriture  (1 comme stdout)
 	int fds_master_worker[2];
 	int fds_worker_master[2];
-	create_fd(fds_master_worker,"fds_master_worker");
-	create_fd(fds_worker_master,"fds_worker_master");
-	data.fdOut = fds_master_worker[1];  // écrivain
-	data.fdIn = fds_worker_master[0];   // lecteur
+	create_fd(PROCESS, fds_master_worker, "fds_master_worker");
+	create_fd(PROCESS, fds_worker_master, "fds_worker_master");
+	data.fdOut =	fds_master_worker[1];	// écrivain
+	data.fdIn =	fds_worker_master[0];	// lecteur
 
+	// duplication
 	ret = fork();
 	myassert(ret != -1, "erreur : fork");
-
 	// fils
-	if (ret == 0)
-	{
-		// supprimer les canaux inutiles
-		dispose_fd(fds_master_worker[1],"fds_master_worker - fils");
-		dispose_fd(fds_worker_master[0],"fds_worker_master - fils");
-		
-		char buffer1[1000];
-		char buffer2[1000];
-		char* argv[5];
-		argv[0] = "./worker";
-		argv[1] = "2";
-		sprintf(buffer1, "%d", fds_master_worker[0]);
-		
-		argv[2] = buffer1;
-		sprintf(buffer2, "%d", fds_worker_master[1]);
-		
-		argv[3] = buffer2;
-		argv[4] = NULL;
-		
-		ret = execv("./worker", argv);
-		myassert(ret == 0, "erreur : execv - unable to start process");
-	}
-
-	
-	dispose_fd(fds_master_worker[0],"fds_master_worker");
-	dispose_fd(fds_worker_master[1],"fds_worker_master");
+	if (ret == 0) launch_first_worker(fds_master_worker, fds_worker_master);
+	// fermer les canaux inutiles du master (père)
+	dispose_fd(PROCESS, fds_master_worker[0], "master");
+	dispose_fd(PROCESS, fds_worker_master[1], "master");
 
 	// boucle infinie
 	loop(data);
-	
-	printf("sorti boucle\n");
+
 	// destruction des tubes nommés, des sémaphores, ...
-	dispose_fd(fds_master_worker[1],"fds_master_worker");
-	dispose_fd(fds_worker_master[0],"fds_worker_master");
-	
+	dispose_fd(PROCESS, fds_master_worker[1], "master");
+	dispose_fd(PROCESS, fds_worker_master[0], "master");
 	dispose_fifo("fd_client_master");
 	dispose_fifo("fd_master_client");
-	
-
-	ret = semctl(semId, -1, IPC_RMID);
-	myassert(semId != -1, "erreur : semctl - unable to destroy the semaphore");
+	dispose_ipc(semId);
 
 	return EXIT_SUCCESS;
 }
