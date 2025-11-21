@@ -33,7 +33,6 @@ struct worker
 	int* fdToWorker;
 };
 
-
 /************************************************************************
  * Usage et analyse des arguments passés en ligne de commande
  ************************************************************************/
@@ -91,7 +90,6 @@ void loop(bool res, struct worker* current_worker)
 			if (current_worker->fdToWorker != NULL) // TODO: while ou if ?
 			{
 				ret = writer(*(current_worker->fdToWorker), &d, sizeof(int));
-				printf("ok %zd\n", ret);
 				ret = wait(NULL);
 				myassert(ret != -1, "erreur : wait");
 			}
@@ -99,7 +97,6 @@ void loop(bool res, struct worker* current_worker)
 		}
 		else
 		{
-
 		if (d == current_worker->number)  // si le nombre correspond au numéro du worker (donc premier)
 		{
 			writer(current_worker->fdToMaster, &d, sizeof(int));
@@ -122,28 +119,14 @@ void loop(bool res, struct worker* current_worker)
 				current_worker->fdToWorker = &fds_master_worker[1];  // écrivain (on chaîne le worker)
 
 				// duplication
-				ret = fork();
-				myassert(ret != -1, "erreur : fork");
+				ret = fork_process();
+
 				// fils
 				if (ret == 0)
 				{
 					dispose_fd(PROCESS, fds_master_worker[1], "fds_master_worker");
 
-					char buffer[1000], fd_in[16], fd_out[16];
-					snprintf(buffer, sizeof(buffer), "%d", d);
-					snprintf(fd_in, sizeof(fd_in), "%d", fds_master_worker[0]);
-					snprintf(fd_out, sizeof(fd_out), "%d", current_worker->fdToMaster);
-
-					char *argv[] = {
-						"./worker",
-						buffer,
-						fd_in,
-						fd_out,
-						NULL
-					};
-
-					ret = execv("./worker", argv);
-					myassert(ret == 0, "'execv' -> impossible de lancer le worker");
+					launch_worker(d, fds_master_worker[0], current_worker->fdToMaster);
 				}
 
 				dispose_fd(PROCESS, fds_master_worker[0], "fds_master_worker");

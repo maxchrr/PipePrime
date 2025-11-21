@@ -5,4 +5,7 @@
 //    - des constantes pour rendre plus lisible les comunications
 //    - des fonctions communes (écriture dans un tube, ...)
 
+ssize_t fork_process(void);
+void launch_worker(const int n, const int fdIn, const int fdOut);
+
 #endif

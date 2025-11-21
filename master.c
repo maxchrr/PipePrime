@@ -159,33 +159,6 @@ void loop(struct master data)
  * Fonctions annexes
  ************************************************************************/
 
-void launch_first_worker(int fds_master_worker[], int fds_worker_master[])
-{
-	ssize_t ret;
-	bool c;
-
-	// fermer les canaux inutiles du worker (fils)
-	dispose_fd(PROCESS, fds_master_worker[1], "worker");
-	dispose_fd(PROCESS, fds_worker_master[0], "worker");
-
-	char fd_in[16], fd_out[16];
-	snprintf(fd_in, sizeof(fd_in), "%d", fds_master_worker[0]);
-	snprintf(fd_out, sizeof(fd_out), "%d", fds_worker_master[1]);
-
-	char *argv[] = {
-		"./worker",
-		"2",
-		fd_in,
-		fd_out,
-		NULL
-	};
-
-	ret = execv("./worker", argv);
-	myassert(ret == 0, "'execv' -> impossible de lancer le worker");
-
-	ret = reader(fds_master_worker[1], &c, sizeof(bool));
-}
-
 int create_ipc(const char* path_name, const int id, const int size, const int flags)
 {
 	key_t key;
@@ -271,10 +244,17 @@ int main(int argc, char * argv[])
 	data.fdIn =	fds_worker_master[0];	// lecteur
 
 	// duplication
-	ret = fork();
-	myassert(ret != -1, "erreur : fork");
+	ret = fork_process();
+
 	// fils
-	if (ret == 0) launch_first_worker(fds_master_worker, fds_worker_master);
+	if (ret == 0)
+	{
+		// fermer les canaux inutiles du worker (fils)
+		dispose_fd(PROCESS, fds_master_worker[1], "worker");
+		dispose_fd(PROCESS, fds_worker_master[0], "worker");
+
+		launch_worker(2, fds_master_worker[0], fds_worker_master[1]);
+	}
 	// fermer les canaux inutiles du master (père)
 	dispose_fd(PROCESS, fds_master_worker[0], "master");
 	dispose_fd(PROCESS, fds_worker_master[1], "master");

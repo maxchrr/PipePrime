@@ -19,6 +19,8 @@
 #include "master_client.h"
 
 // fonctions éventuelles internes au fichier
+
+// fonctions éventuelles proposées dans le .h
 void create_fifo(const char* PROCESS, const char* name)
 {
 	ssize_t ret = mkfifo(name, 0644);
@@ -37,7 +39,7 @@ int open_fifo(const char* PROCESS, const char* name, int mode)
 {
 	int fd = open(name, mode);
 	myassert(fd != -1, "'open' - impossible d'ouvrir le fifo");
-	printf("[%s] Le fifo %s est ouvert\n", PROCESS, name);
+	//printf("[%s] Le fifo %s est ouvert\n", PROCESS, name);
 	return fd;
 }
 
@@ -45,7 +47,7 @@ void close_fifo(const char* PROCESS, int fd, const char* name)
 {
 	ssize_t ret = close(fd);
 	myassert(ret == 0, "'close' -> impossible de fermer le fifo");
-	printf("[%s] Le fifo %s est fermé\n", PROCESS, name);
+	//printf("[%s] Le fifo %s est fermé\n", PROCESS, name);
 }
 
 void op_ipc(const int semId, struct sembuf* ops, size_t n)
@@ -54,6 +56,3 @@ void op_ipc(const int semId, struct sembuf* ops, size_t n)
 	ret = semop(semId, ops, n);
 	myassert(ret != -1, "'semop''");
 }
-
-// fonctions éventuelles proposées dans le .h
-
