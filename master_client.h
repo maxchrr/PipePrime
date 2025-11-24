@@ -21,11 +21,11 @@
 #define IPC_ID 5
 #define IPC_SIZE 3
 
-void create_fifo(const char* PROCESS, const char* name);
-void dispose_fifo(const char* PROCESS, const char* name);
+void create_fifo(/*const char* PROCESS,*/ const char* name);
+void dispose_fifo(/*const char* PROCESS,*/ const char* name);
 
-int open_fifo(const char* PROCESS, const char* name, int mode);
-void close_fifo(const char* PROCESS, int fifo, const char* name);
+int open_fifo(/*const char* PROCESS,*/ const char* name, int mode);
+void close_fifo(/*const char* PROCESS,*/ int fifo, const char* name);
 
 void op_ipc(const int semId, struct sembuf* ops, size_t n);
 
