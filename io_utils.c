@@ -3,18 +3,18 @@
 #include "io_utils.h"
 #include "myassert.h"
 
-void create_fd(const char* PROCESS, int* fd, const char* name)
+void create_fd(/*const char* PROCESS,*/ int* fd, const char* name)
 {
 	ssize_t ret = pipe(fd);
 	myassert(ret != -1, "'pipe' -> impossible de créer le tube");
-	printf("[%s] Création du tube %d (%s)\n", PROCESS, *fd, name);
+	//printf("[%s] Création du tube %d (%s)\n", PROCESS, *fd, name);
 }
 
-void dispose_fd(const char* PROCESS, const int fd, const char* name)
+void dispose_fd(/*const char* PROCESS,*/ const int fd, const char* name)
 {
 	ssize_t ret = close(fd);
 	myassert(ret == 0, "'close' -> impossible de fermer le tube");
-	printf("[%s] Fermeture du tube %d (%s)\n", PROCESS, fd, name);
+	//printf("[%s] Fermeture du tube %d (%s)\n", PROCESS, fd, name);
 }
 
 ssize_t reader(int fd, void* buf, size_t size) {
