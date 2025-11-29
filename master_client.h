@@ -18,7 +18,7 @@
 // pour masquer l'implémentation
 
 #define IPC_PATH_NAME "master_client.h"
-#define IPC_ID 5
+#define IPC_ID 0x42
 #define IPC_SIZE 3
 
 void create_fifo(const char* PROCESS, const char* name);
