@@ -21,33 +21,45 @@
 // fonctions éventuelles internes au fichier
 
 // fonctions éventuelles proposées dans le .h
-void create_fifo(/*const char* PROCESS,*/ const char* name)
+void create_fifo(const char* PROCESS, const char* name)
 {
+	UNUSED(PROCESS);
+	UNUSED(name);
+
 	ssize_t ret = mkfifo(name, 0644);
 	myassert(ret == 0, "'mkfifo' -> impossible de créer le fifo");
-	//printf("[%s] Création du fifo %s\n", PROCESS, name);
+	TRACE("[%s] Création du fifo %s\n", PROCESS, name);
 }
 
-void dispose_fifo(/*const char* PROCESS,*/ const char* name)
+void dispose_fifo(const char* PROCESS, const char* name)
 {
+	UNUSED(PROCESS);
+	UNUSED(name);
+
 	ssize_t ret = unlink(name);
 	myassert(ret == 0, "'unlink' -> impossible de détruire le fifo");
-	//printf("[%s] Destruction du fifo %s\n", PROCESS, name);
+	TRACE("[%s] Destruction du fifo %s\n", PROCESS, name);
 }
 
-int open_fifo(/*const char* PROCESS,*/ const char* name, int mode)
+int open_fifo(const char* PROCESS, const char* name, int mode)
 {
+	UNUSED(PROCESS);
+	UNUSED(name);
+
 	int fd = open(name, mode);
 	myassert(fd != -1, "'open' - impossible d'ouvrir le fifo");
-	//printf("[%s] Le fifo %s est ouvert\n", PROCESS, name);
+	TRACE("[%s] Le fifo %s est ouvert\n", PROCESS, name);
 	return fd;
 }
 
-void close_fifo(/*const char* PROCESS,*/ int fd, const char* name)
+void close_fifo(const char* PROCESS, int fd, const char* name)
 {
+	UNUSED(PROCESS);
+	UNUSED(name);
+
 	ssize_t ret = close(fd);
 	myassert(ret == 0, "'close' -> impossible de fermer le fifo");
-	//printf("[%s] Le fifo %s est fermé\n", PROCESS, name);
+	TRACE("[%s] Le fifo %s est fermé\n", PROCESS, name);
 }
 
 void op_ipc(const int semId, struct sembuf* ops, size_t n)

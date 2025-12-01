@@ -97,8 +97,8 @@ void loop(struct master data)
 		op_ipc(data.semId, &wait_point_client, 1);
 		op_ipc(data.semId, &wait_point_master, 1);
 
-		int fd_client_master = open_fifo(/*PROCESS,*/ "fd_client_master", O_RDONLY);
-		int fd_master_client = open_fifo(/*PROCESS,*/ "fd_master_client", O_WRONLY);
+		int fd_client_master = open_fifo(PROCESS, "fd_client_master", O_RDONLY);
+		int fd_master_client = open_fifo(PROCESS, "fd_master_client", O_WRONLY);
 
 		int order;
 		reader(fd_client_master, &order, sizeof(int));
@@ -120,42 +120,26 @@ void loop(struct master data)
 		}
 		else if (order == ORDER_COMPUTE_PRIME)
 		{
-			// Nombre demandé (lecture du client -> écriture au worker)
+			/* Lecture du nombre demandé */
 			int n;
 			reader(fd_client_master, &n, sizeof(int));
-			//writer(data.fdOut, &n, sizeof(int));
 
-			// Résultat
-			bool res1;
-			bool res2;
-			bool res3;
-			if (n > data.highest_prime)
+			/* Calcul du résultat */
+			bool res;
+			for (int i=data.highest_prime+1; i<=n; ++i)
 			{
-				for(int i=data.highest_prime+1; i<=n; ++i)
-				{
-					writer(data.fdOut, &i, sizeof(int));
-					reader(data.fdIn, &res1, sizeof(bool));
-					
-					printf("Your boolean variable is: %s for %d\n", res1 ? "true " : "false" , i);
+				writer(data.fdOut, &i, sizeof(int));
+				reader(data.fdIn, &res, sizeof(bool));
 
-					if (res1)
-					{
-						data.highest_prime = i;
-						data.how_many_prime += 1;
-					}
+				if (res)
+				{
+					data.highest_prime = i;
+					data.how_many_prime += 1;
 				}
-				
-				
-				writer(data.fdOut, &n, sizeof(int));
-				reader(data.fdIn, &res2, sizeof(bool));
-				writer(fd_master_client, &res2, sizeof(bool));
-			
-			} else {
-				
-				writer(data.fdOut, &n, sizeof(int));
-				reader(data.fdIn, &res3, sizeof(bool));
-				writer(fd_master_client, &res3, sizeof(bool));
 			}
+			
+			/* Réponse au client */
+			writer(fd_master_client, &res, sizeof(bool));
 		}
 		else if (order == ORDER_HOW_MANY_PRIME)
 		{
@@ -166,8 +150,8 @@ void loop(struct master data)
 			writer(fd_master_client, &data.highest_prime, sizeof(int));
 		}
 
-		close_fifo(/*PROCESS,*/ fd_client_master, "fd_client_master");
-		close_fifo(/*PROCESS,*/ fd_master_client, "fd_master_client");
+		close_fifo(PROCESS, fd_client_master, "fd_client_master");
+		close_fifo(PROCESS, fd_master_client, "fd_master_client");
 	} while (!stop);
 }
 
@@ -245,8 +229,8 @@ int main(int argc, char * argv[])
 	init_ipc(data.semId, values);
 
 	// fifo
-	create_fifo(/*PROCESS,*/ "fd_client_master");  // tube 0 (client -> master)
-	create_fifo(/*PROCESS,*/ "fd_master_client");  // tube 1 (master -> client)
+	create_fifo(PROCESS, "fd_client_master");  // tube 0 (client -> master)
+	create_fifo(PROCESS, "fd_master_client");  // tube 1 (master -> client)
 
 	// déclaration du tube
 	// il y aura un file descriptor par extrémité du tube :
@@ -254,8 +238,8 @@ int main(int argc, char * argv[])
 	//    1 : extrémité en écriture  (1 comme stdout)
 	int fds_master_worker[2];
 	int fds_worker_master[2];
-	create_fd(/*PROCESS,*/ fds_master_worker, "fds_master_worker");
-	create_fd(/*PROCESS,*/ fds_worker_master, "fds_worker_master");
+	create_fd(PROCESS, fds_master_worker, "fds_master_worker");
+	create_fd(PROCESS, fds_worker_master, "fds_worker_master");
 	data.fdOut =	fds_master_worker[1];	// écrivain
 	data.fdIn =	fds_worker_master[0];	// lecteur
 
@@ -266,29 +250,33 @@ int main(int argc, char * argv[])
 	if (ret == 0)
 	{
 		// fermer les canaux inutiles du worker (fils)
-		dispose_fd(/*PROCESS,*/ fds_master_worker[1], "worker");
-		dispose_fd(/*PROCESS,*/ fds_worker_master[0], "worker");
+		dispose_fd(PROCESS, fds_master_worker[1], "worker");
+		dispose_fd(PROCESS, fds_worker_master[0], "worker");
 
 		launch_worker(2, fds_master_worker[0], fds_worker_master[1]);
 	}
+
 	// fermer les canaux inutiles du master (père)
-	dispose_fd(/*PROCESS,*/ fds_master_worker[0], "master");
-	dispose_fd(/*PROCESS,*/ fds_worker_master[1], "master");
+	dispose_fd(PROCESS, fds_master_worker[0], "master");
+	dispose_fd(PROCESS, fds_worker_master[1], "master");
 	
 	bool res;
 	reader(data.fdIn, &res, sizeof(bool));
+
+	printf("[%s] Prêt\n", PROCESS);
 	
 	// boucle infinie
 	loop(data);
 
 	// destruction des tubes nommés, des sémaphores, ...
-	dispose_fd(/*PROCESS,*/ fds_master_worker[1], "master");
-	dispose_fd(/*PROCESS,*/ fds_worker_master[0], "master");
-	dispose_fifo(/*PROCESS,*/ "fd_client_master");
-	dispose_fifo(/*PROCESS,*/ "fd_master_client");
+	dispose_fd(PROCESS, fds_master_worker[1], "master");
+	dispose_fd(PROCESS, fds_worker_master[0], "master");
+	dispose_fifo(PROCESS, "fd_client_master");
+	dispose_fifo(PROCESS, "fd_master_client");
 	dispose_ipc(data.semId);
 	
-	printf("Arret du master\n");
+	printf("[%s] Arrêt\n", PROCESS);
+
 	return EXIT_SUCCESS;
 }
 
