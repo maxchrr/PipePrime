@@ -127,13 +127,15 @@ void loop(struct master data)
 
 			// Résultat
 			int d = data.highest_prime;
-			
+			bool res1;
+			bool res2;
+			bool res3;
 			if (n > data.highest_prime){
-				for(int i = data.highest_prime; i<n; i++){
+				for(int i = d+1; i<=n; i++){
 					
 					writer(data.fdOut, &i, sizeof(int));
 					
-					bool res1;
+					
 					reader(data.fdIn, &res1, sizeof(bool));
 					
 				
@@ -146,15 +148,22 @@ void loop(struct master data)
 					d=d+1;
 					
 				}
-				bool res2;
+				
+				
 				writer(data.fdOut, &n, sizeof(int));
+				
 				reader(data.fdIn, &res2, sizeof(bool));
+				
 				writer(fd_master_client, &res2, sizeof(bool));
 			
 			} else {
-				bool res3;
+				
 				writer(data.fdOut, &n, sizeof(int));
+				
+				
 				reader(data.fdIn, &res3, sizeof(bool));
+				
+				
 				writer(fd_master_client, &res3, sizeof(bool));
 			}
 			/*
@@ -290,8 +299,10 @@ int main(int argc, char * argv[])
 	// fermer les canaux inutiles du master (père)
 	dispose_fd(/*PROCESS,*/ fds_master_worker[0], "master");
 	dispose_fd(/*PROCESS,*/ fds_worker_master[1], "master");
+	
 	bool res;
 	reader(data.fdIn, &res, sizeof(bool));
+	
 	// boucle infinie
 	loop(data);
 

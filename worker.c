@@ -93,7 +93,7 @@ void loop( struct worker* current_worker)
 			// Arrêter tout les workers suivants
 			if (current_worker->fdToWorker != NULL) // TODO: while ou if ?
 			{
-				ret = writer(*(current_worker->fdToWorker), &d, sizeof(int));
+				writer(*(current_worker->fdToWorker), &d, sizeof(int));
 				ret = wait(NULL);
 				myassert(ret != -1, "erreur : wait");
 			}
