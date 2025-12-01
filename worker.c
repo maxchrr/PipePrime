@@ -99,7 +99,10 @@ void loop(struct worker* current_worker, bool res)
 		else
 		{
 			if (d == current_worker->number)  // si le nombre correspond au numéro du worker (donc premier)
+			{
+				res = true;
 				writer(current_worker->fdToMaster, &res, sizeof(bool));
+			}
 			else 
 			{
 				if (d % current_worker->number == 0) // si il n'est pas premier

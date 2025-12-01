@@ -126,16 +126,26 @@ void loop(struct master data)
 
 			/* Calcul du résultat */
 			bool res;
-			for (int i=data.highest_prime+1; i<=n; ++i)
+			if (n > data.highest_prime)
 			{
-				writer(data.fdOut, &i, sizeof(int));
-				reader(data.fdIn, &res, sizeof(bool));
-
-				if (res)
+				// On calcule N
+				for (int i=data.highest_prime+1; i<=n; ++i)
 				{
-					data.highest_prime = i;
-					data.how_many_prime += 1;
+					writer(data.fdOut, &i, sizeof(int));
+					reader(data.fdIn, &res, sizeof(bool));
+
+					if (res)
+					{
+						data.highest_prime = i;
+						data.how_many_prime += 1;
+					}
 				}
+			}
+			else
+			{
+				// N est connu
+				writer(data.fdOut, &n, sizeof(int));
+				reader(data.fdIn, &res, sizeof(bool));
 			}
 			
 			/* Réponse au client */
