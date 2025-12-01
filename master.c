@@ -126,61 +126,36 @@ void loop(struct master data)
 			//writer(data.fdOut, &n, sizeof(int));
 
 			// Résultat
-			int d = data.highest_prime;
 			bool res1;
 			bool res2;
 			bool res3;
-			if (n > data.highest_prime){
-				for(int i = d+1; i<=n; i++){
-					
+			if (n > data.highest_prime)
+			{
+				for(int i=data.highest_prime+1; i<=n; ++i)
+				{
 					writer(data.fdOut, &i, sizeof(int));
-					
-					
 					reader(data.fdIn, &res1, sizeof(bool));
 					
-				
-					printf("Your boolean variable is: %s for %d\n", res1 ? "true " : "false" , d);
-					if (res1){
-						
-						data.highest_prime = d;
+					printf("Your boolean variable is: %s for %d\n", res1 ? "true " : "false" , i);
+
+					if (res1)
+					{
+						data.highest_prime = i;
 						data.how_many_prime += 1;
 					}
-					d=d+1;
-					
 				}
 				
 				
 				writer(data.fdOut, &n, sizeof(int));
-				
 				reader(data.fdIn, &res2, sizeof(bool));
-				
 				writer(fd_master_client, &res2, sizeof(bool));
 			
 			} else {
 				
 				writer(data.fdOut, &n, sizeof(int));
-				
-				
 				reader(data.fdIn, &res3, sizeof(bool));
-				
-				
 				writer(fd_master_client, &res3, sizeof(bool));
 			}
-			/*
-			reader(data.fdIn, &res, sizeof(bool));
-			if (res) 
-				reader(data.fdIn, &d, sizeof(int));
-
-			if (n == d && res)
-			{
-				writer(fd_master_client, &res, sizeof(bool));
-				if (d > data.highest_prime)
-					data.highest_prime = d;
-				data.how_many_prime += 1;
-			}
-			else
-				writer(fd_master_client, &res, sizeof(bool));
-			*/
 		}
 		else if (order == ORDER_HOW_MANY_PRIME)
 		{
