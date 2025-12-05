@@ -107,6 +107,14 @@ int get_ipc(const char* path_name, const int id, const int size, const int flags
 /************************************************************************
  * Fonctions annexes ordres
  ************************************************************************/
+void order_compute_local(int n)
+{
+	if (n < 2) {
+        	printf("Pas de nombres premiers pour N < 2.\n");
+        	return;
+	}
+}
+
 void order_stop(const int fd_master_client)
 {
 	ssize_t ret;
@@ -180,7 +188,11 @@ int main(int argc, char * argv[])
 	// N'hésitez pas à faire des fonctions annexes ; si la fonction main
 	// ne dépassait pas une trentaine de lignes, ce serait bien.
 
-	if (order == ORDER_COMPUTE_PRIME_LOCAL) return EXIT_SUCCESS;
+	if (order == ORDER_COMPUTE_PRIME_LOCAL)
+	{
+		order_compute_local(number);
+		return EXIT_SUCCESS;
+	}
 
 	int semId;
 
